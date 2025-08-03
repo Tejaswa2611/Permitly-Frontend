@@ -1,158 +1,207 @@
 package com.example.permitely.data.repository
 
-import com.example.permitely.data.models.AuthResponse
-import com.example.permitely.data.models.LoginRequest
-import com.example.permitely.data.models.SignupRequest
+import com.example.permitely.data.models.*
+import com.example.permitely.data.network.AuthApiService
+import com.example.permitely.data.storage.TokenStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// ============================================================================
-// Authentication Repository for Permitely - Visitor Management System
-// ============================================================================
-// This repository handles all authentication-related data operations following
-// the Repository pattern in Clean Architecture. It serves as the single source
-// of truth for authentication data and abstracts the data sources from the UI.
-
 /**
- * Repository class responsible for handling authentication operations.
- *
- * This class implements the Repository pattern and serves as an abstraction layer
- * between the ViewModel and data sources (API, local storage). It provides:
- *
- * - Clean separation between data and business logic
- * - Centralized authentication logic
- * - Error handling and data transformation
- * - Caching and offline support (future implementation)
- * - Easy testing with mock implementations
- *
- * The @Singleton annotation ensures only one instance exists throughout the app,
- * and @Inject enables Hilt dependency injection.
+ * Repository handling authentication operations with real backend integration
  */
 @Singleton
 class AuthRepository @Inject constructor(
-    // TODO: Inject actual dependencies when available:
-    // private val authApi: AuthApiService,
-    // private val userPreferences: UserPreferences,
-    // private val userDao: UserDao
+    private val authApiService: AuthApiService,
+    private val tokenStorage: TokenStorage
 ) {
 
     /**
-     * Authenticates a user with email and password.
-     *
-     * This method handles the complete login flow including:
-     * - Validating input credentials
-     * - Making API calls to the backend
-     * - Handling network errors and timeouts
-     * - Storing authentication tokens locally
-     * - Returning appropriate success/error responses
-     *
-     * @param loginRequest Contains user email and password
-     * @return Flow<AuthResponse> Reactive stream of authentication result
+     * Authenticate user with backend API
      */
-    suspend fun login(loginRequest: LoginRequest): Flow<AuthResponse> = flow {
+    suspend fun login(loginRequest: LoginRequest): Flow<AuthResult> = flow {
         try {
-            // Simulate network delay for realistic user experience
-            delay(1000)
+            emit(AuthResult.Loading)
 
-            // TODO: Replace with actual API call to your backend
-            // Example implementation:
-            // val response = authApi.login(loginRequest)
-            // if (response.isSuccessful) {
-            //     val authResponse = response.body()
-            //     // Store token locally for future requests
-            //     userPreferences.saveAuthToken(authResponse.token)
-            //     emit(authResponse)
-            // }
+            // Log the request data for debugging
+            println("Login Request: email=${loginRequest.email}, password=[HIDDEN]")
 
-            // Mock implementation for development/testing
-            if (loginRequest.email.isNotEmpty() && loginRequest.password.isNotEmpty()) {
-                emit(AuthResponse(
-                    success = true,
-                    message = "Login successful",
-                    token = "mock_token_${System.currentTimeMillis()}"
-                ))
+            val response = authApiService.login(loginRequest)
+
+            // Log the response for debugging
+            println("Login Response Code: ${response.code()}")
+            println("Login Response Success: ${response.isSuccessful}")
+
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                println("Login API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
+
+                if (apiResponse?.success == true && apiResponse.data != null) {
+                    val userData = apiResponse.data.user
+                    val tokens = apiResponse.data.tokens
+
+                    println("Login User Data: id=${userData.id}, name=${userData.name}, role=${userData.role}")
+                    println("Login Tokens: accessToken length=${tokens.accessToken.length}, refreshToken length=${tokens.refreshToken.length}")
+
+                    // Save tokens securely
+                    tokenStorage.saveTokens(
+                        accessToken = tokens.accessToken,
+                        refreshToken = tokens.refreshToken
+                    )
+
+                    // Save user information
+                    tokenStorage.saveUserInfo(
+                        id = userData.id.toString(), // Convert Int to String for storage
+                        name = userData.name,
+                        email = userData.email,
+                        role = userData.role
+                    )
+
+                    emit(AuthResult.Success("Login successful"))
+                } else {
+                    emit(AuthResult.Error(apiResponse?.message ?: "Login failed"))
+                }
             } else {
-                emit(AuthResponse(
-                    success = false,
-                    message = "Invalid credentials"
-                ))
+                // Get the actual error response body for debugging
+                val errorBody = response.errorBody()?.string()
+                println("Login HTTP Error ${response.code()}: $errorBody")
+
+                val errorMessage = when (response.code()) {
+                    400 -> "Invalid email or password format"
+                    401 -> "Invalid credentials"
+                    500 -> "Server error. Please try again later"
+                    else -> "Login failed. Please try again"
+                }
+                emit(AuthResult.Error(errorMessage))
             }
         } catch (e: Exception) {
-            // Handle various types of exceptions:
-            // - Network connectivity issues
-            // - Server errors (5xx)
-            // - Authentication failures (401)
-            // - Timeout exceptions
-            emit(AuthResponse(
-                success = false,
-                message = e.message ?: "Login failed"
-            ))
+            // Handle network errors with detailed logging
+            println("Login Exception: ${e.javaClass.simpleName}: ${e.message}")
+            e.printStackTrace()
+
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
+                is com.google.gson.JsonSyntaxException -> "Invalid response format from server"
+                is com.google.gson.JsonParseException -> "Failed to parse server response"
+                else -> "Network error: ${e.message ?: "Unknown error"}"
+            }
+            emit(AuthResult.Error(errorMessage))
         }
     }
 
     /**
-     * Registers a new user account in the system.
-     *
-     * This method handles the complete registration flow including:
-     * - Validating registration data
-     * - Checking for existing accounts
-     * - Creating new user account via API
-     * - Handling validation errors
-     * - Automatic login after successful registration
-     *
-     * @param signupRequest Contains all user registration information
-     * @return Flow<AuthResponse> Reactive stream of registration result
+     * Register new user with backend API
      */
-    suspend fun signup(signupRequest: SignupRequest): Flow<AuthResponse> = flow {
+    suspend fun signup(signupRequest: SignupRequest): Flow<AuthResult> = flow {
         try {
-            // Simulate network delay for realistic user experience
-            delay(1000)
+            emit(AuthResult.Loading)
 
-            // TODO: Replace with actual API call to your backend
-            // Example implementation:
-            // val response = authApi.signup(signupRequest)
-            // if (response.isSuccessful) {
-            //     val authResponse = response.body()
-            //     // Store token locally and user info
-            //     userPreferences.saveAuthToken(authResponse.token)
-            //     userPreferences.saveUserInfo(authResponse.user)
-            //     emit(authResponse)
-            // }
+            // Log the request data for debugging
+            println("Signup Request: name=${signupRequest.name}, email=${signupRequest.email}, phone=${signupRequest.phoneNumber}, role=${signupRequest.role}")
 
-            // Mock implementation for development/testing
-            // Basic validation - in real implementation, this would be server-side
-            if (signupRequest.email.isNotEmpty() && signupRequest.password.length >= 6) {
-                emit(AuthResponse(
-                    success = true,
-                    message = "Signup successful",
-                    token = "mock_token_${System.currentTimeMillis()}"
-                ))
+            val response = authApiService.signup(signupRequest)
+
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse?.success == true && apiResponse.data != null) {
+                    val userData = apiResponse.data.user
+                    val tokens = apiResponse.data.tokens
+
+                    // Save tokens securely
+                    tokenStorage.saveTokens(
+                        accessToken = tokens.accessToken,
+                        refreshToken = tokens.refreshToken
+                    )
+
+                    // Save user information
+                    tokenStorage.saveUserInfo(
+                        id = userData.id.toString(), // Convert Int to String for storage
+                        name = userData.name,
+                        email = userData.email,
+                        role = userData.role
+                    )
+
+                    emit(AuthResult.Success("Account created successfully"))
+                } else {
+                    emit(AuthResult.Error(apiResponse?.message ?: "Signup failed"))
+                }
             } else {
-                emit(AuthResponse(
-                    success = false,
-                    message = "Invalid signup data"
-                ))
+                // Get the actual error response body for debugging
+                val errorBody = response.errorBody()?.string()
+                println("Signup HTTP Error ${response.code()}: $errorBody")
+
+                // Handle HTTP error codes
+                val errorMessage = when (response.code()) {
+                    400 -> {
+                        // Try to parse the actual error message from backend
+                        if (errorBody?.contains("email") == true) "Invalid email format"
+                        else if (errorBody?.contains("password") == true) "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
+                        else if (errorBody?.contains("phone") == true) "Invalid phone number format"
+                        else if (errorBody?.contains("role") == true) "Invalid role. Must be admin, host, or guard"
+                        else "Invalid input data. Please check your information"
+                    }
+                    409 -> "User already exists with this email"
+                    500 -> "Server error. Please try again later"
+                    else -> "Signup failed. Please try again"
+                }
+                emit(AuthResult.Error(errorMessage))
             }
         } catch (e: Exception) {
-            // Handle registration-specific errors:
-            // - Email already exists (409)
-            // - Validation failures (400)
-            // - Network connectivity issues
-            // - Server errors (5xx)
-            emit(AuthResponse(
-                success = false,
-                message = e.message ?: "Signup failed"
-            ))
+            // Handle network errors
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
+                else -> e.message ?: "Network error occurred"
+            }
+            emit(AuthResult.Error(errorMessage))
         }
     }
 
-    // TODO: Add additional authentication methods:
-    // - logout(): Clear local tokens and user data
-    // - refreshToken(): Refresh expired JWT tokens
-    // - forgotPassword(): Initiate password reset flow
-    // - verifyEmail(): Handle email verification
-    // - changePassword(): Update user password
+    /**
+     * Logout user and clear stored tokens
+     */
+    suspend fun logout(): Flow<AuthResult> = flow {
+        try {
+            emit(AuthResult.Loading)
+
+            // Get refresh token for logout request
+            tokenStorage.getRefreshToken().collect { refreshToken ->
+                if (refreshToken != null) {
+                    val response = authApiService.logout(LogoutRequest(refreshToken))
+                    // Clear tokens regardless of API response
+                    tokenStorage.clearAll()
+                    emit(AuthResult.Success("Logged out successfully"))
+                } else {
+                    // No token to logout with, just clear local storage
+                    tokenStorage.clearAll()
+                    emit(AuthResult.Success("Logged out successfully"))
+                }
+            }
+        } catch (e: Exception) {
+            // Even if logout API fails, clear local tokens
+            tokenStorage.clearAll()
+            emit(AuthResult.Success("Logged out successfully"))
+        }
+    }
+
+    /**
+     * Check if user is currently logged in
+     */
+    fun isLoggedIn(): Flow<Boolean> = tokenStorage.isLoggedIn()
+
+    /**
+     * Get stored user information
+     */
+    fun getUserInfo(): Flow<TokenStorage.UserInfo?> = tokenStorage.getUserInfo()
+}
+
+/**
+ * Sealed class representing authentication operation results
+ */
+sealed class AuthResult {
+    object Loading : AuthResult()
+    data class Success(val message: String) : AuthResult()
+    data class Error(val message: String) : AuthResult()
 }

@@ -208,6 +208,8 @@ fun SignupScreen(
         PermitelyButton(
             text = "Create Account",
             onClick = {
+                println("Create Account button clicked!")
+                println("Form validation: name=${name.isNotBlank()}, email=${email.isNotBlank()}, phone=${phoneNumber.isNotBlank()}, password=${password.length >= 6}, passwordsMatch=$passwordsMatch")
                 viewModel.clearError()
                 viewModel.signup(name, email, password, phoneNumber, selectedUserType)
             },

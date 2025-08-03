@@ -2,10 +2,10 @@ package com.example.permitely.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.permitely.data.models.AuthResponse
 import com.example.permitely.data.models.LoginRequest
 import com.example.permitely.data.models.SignupRequest
 import com.example.permitely.data.repository.AuthRepository
+import com.example.permitely.data.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,150 +13,150 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// ============================================================================
-// Authentication ViewModel
-// ============================================================================
-// This ViewModel manages the UI state and business logic for authentication
-// screens following the MVVM architecture pattern.
-
 /**
- * UI State data class that represents the current state of authentication screens.
- *
- * This immutable state object is used to drive UI updates and provide reactive
- * programming patterns. The UI observes this state and automatically updates
- * when any property changes.
- *
- * @param isLoading Whether an authentication operation is currently in progress
- * @param isSuccess Whether the last authentication operation was successful
- * @param errorMessage Error message to display to user (null if no error)
- * @param token Authentication token received upon successful login/signup
+ * UI State for authentication screens
  */
 data class AuthUiState(
-    val isLoading: Boolean = false,     // Shows loading indicators in UI
-    val isSuccess: Boolean = false,     // Triggers navigation to main app
-    val errorMessage: String? = null,   // Displays error messages to user
-    val token: String? = null           // Stores auth token for API requests
+    val isLoading: Boolean = false,
+    val isSuccess: Boolean = false,
+    val errorMessage: String? = null
 )
 
 /**
- * ViewModel for managing authentication logic and UI state.
- *
- * This ViewModel follows the MVVM architecture pattern and is responsible for:
- * - Managing UI state for login and signup screens
- * - Coordinating with the AuthRepository for data operations
- * - Handling business logic and validation
- * - Providing reactive state updates to the UI
- * - Managing coroutines for asynchronous operations
- *
- * The @HiltViewModel annotation enables automatic dependency injection,
- * and @Inject allows Hilt to provide the required dependencies.
+ * ViewModel managing authentication with real backend integration
  */
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository  // Repository for auth operations
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    // ============================================================================
-    // State Management
-    // ============================================================================
-    // Private mutable state that can only be modified within the ViewModel
     private val _uiState = MutableStateFlow(AuthUiState())
-
-    // Public read-only state that UI components can observe
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    // ============================================================================
-    // Authentication Operations
-    // ============================================================================
-
     /**
-     * Performs user login with email and password.
-     *
-     * This method handles the complete login flow including:
-     * - Input validation (basic client-side checks)
-     * - Setting loading state for UI feedback
-     * - Calling repository to perform authentication
-     * - Updating UI state based on result
-     * - Error handling and user feedback
-     *
-     * @param email User's email address
-     * @param password User's password
+     * Login with backend API integration
      */
     fun login(email: String, password: String) {
-        viewModelScope.launch {
-            // Set loading state to show progress indicators
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        // Client-side validation before API call - matching backend validation exactly
+        if (!isValidEmailBackend(email)) {
+            _uiState.value = AuthUiState(errorMessage = "Please enter a valid email address")
+            return
+        }
 
-            // Call repository to perform authentication
-            authRepository.login(LoginRequest(email, password)).collect { response ->
-                // Update UI state based on authentication result
-                _uiState.value = if (response.success) {
-                    // Success: prepare for navigation to main app
-                    AuthUiState(
-                        isLoading = false,
-                        isSuccess = true,
-                        token = response.token
-                    )
-                } else {
-                    // Failure: show error message to user
-                    AuthUiState(
-                        isLoading = false,
-                        isSuccess = false,
-                        errorMessage = response.message
-                    )
+        if (!isValidPasswordBackend(password)) {
+            _uiState.value = AuthUiState(errorMessage = "Invalid password format")
+            return
+        }
+
+        viewModelScope.launch {
+            authRepository.login(LoginRequest(email, password)).collect { result ->
+                _uiState.value = when (result) {
+                    is AuthResult.Loading -> AuthUiState(isLoading = true)
+                    is AuthResult.Success -> AuthUiState(isSuccess = true)
+                    is AuthResult.Error -> AuthUiState(errorMessage = result.message)
                 }
             }
         }
     }
 
     /**
-     * Performs user registration with complete user information.
-     *
-     * This method handles the complete signup flow including:
-     * - Multi-field validation
-     * - User type selection handling
-     * - Setting appropriate loading states
-     * - Calling repository for account creation
-     * - Providing user feedback on success/failure
-     *
-     * @param name User's full name
-     * @param email User's email address (must be unique)
-     * @param password User's chosen password
-     * @param phoneNumber User's phone number for notifications
-     * @param userType Type of account (resident, guard, admin)
+     * Signup with backend API integration
+     * Note: Using 'role' field as required by backend instead of 'userType'
      */
     fun signup(name: String, email: String, password: String, phoneNumber: String, userType: String) {
-        viewModelScope.launch {
-            // Set loading state to show progress indicators
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        // Client-side validation before API call - matching backend validation exactly
+        if (name.isBlank()) {
+            _uiState.value = AuthUiState(errorMessage = "Name is required")
+            return
+        }
 
-            // Call repository to create new user account
+        if (!isValidEmailBackend(email)) {
+            _uiState.value = AuthUiState(errorMessage = "Please enter a valid email address")
+            return
+        }
+
+        if (!isValidPasswordBackend(password)) {
+            _uiState.value = AuthUiState(
+                errorMessage = "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
+            )
+            return
+        }
+
+        if (phoneNumber.length < 10) {
+            _uiState.value = AuthUiState(errorMessage = "Please enter a valid phone number")
+            return
+        }
+
+        viewModelScope.launch {
             authRepository.signup(
-                SignupRequest(name, email, password, phoneNumber, userType)
-            ).collect { response ->
-                // Update UI state based on registration result
-                _uiState.value = if (response.success) {
-                    // Success: prepare for navigation to main app
-                    AuthUiState(
-                        isLoading = false,
-                        isSuccess = true,
-                        token = response.token
-                    )
-                } else {
-                    // Failure: show error message to user
-                    AuthUiState(
-                        isLoading = false,
-                        isSuccess = false,
-                        errorMessage = response.message
-                    )
+                SignupRequest(
+                    name = name,
+                    email = email,
+                    password = password,
+                    phoneNumber = phoneNumber,
+                    role = userType // Backend expects 'role' field
+                )
+            ).collect { result ->
+                _uiState.value = when (result) {
+                    is AuthResult.Loading -> AuthUiState(isLoading = true)
+                    is AuthResult.Success -> AuthUiState(isSuccess = true)
+                    is AuthResult.Error -> AuthUiState(errorMessage = result.message)
                 }
             }
         }
     }
 
-    // ============================================================================
-    // State Management Helper Methods
-    // ============================================================================
+    /**
+     * Validates email according to backend requirements
+     * Matches: const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+     */
+    private fun isValidEmailBackend(email: String): Boolean {
+        val emailRegex = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+        return emailRegex.matches(email)
+    }
+
+    /**
+     * Validates password according to backend requirements exactly
+     */
+    private fun isValidPasswordBackend(password: String): Boolean {
+        // Password must be at least 8 characters long
+        if (password.length < 8) {
+            return false
+        }
+
+        // Must contain at least one uppercase letter
+        if (!Regex("[A-Z]").containsMatchIn(password)) {
+            return false
+        }
+
+        // Must contain at least one lowercase letter
+        if (!Regex("[a-z]").containsMatchIn(password)) {
+            return false
+        }
+
+        // Must contain at least one number
+        if (!Regex("\\d").containsMatchIn(password)) {
+            return false
+        }
+
+        // Must contain at least one special character
+        if (!Regex("[!@#$%^&*(),.?\":{}|<>]").containsMatchIn(password)) {
+            return false
+        }
+
+        return true
+    }
+
+    /**
+     * Logout user
+     */
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.logout().collect { result ->
+                // Handle logout result if needed
+            }
+        }
+    }
 
     /**
      * Clears any existing error message from the UI state.

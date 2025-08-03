@@ -9,9 +9,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import dagger.hilt.android.AndroidEntryPoint
 import com.example.permitely.ui.auth.AuthNavigation
+import com.example.permitely.ui.main.WelcomeScreen
 import com.example.permitely.ui.theme.PermitelyTheme
+import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -24,19 +25,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var isAuthenticated by remember { mutableStateOf(false) }
-
-                    if (isAuthenticated) {
-                        // TODO: Navigate to main app content
-                        // For now, show a placeholder
-                        MainContent()
-                    } else {
-                        AuthNavigation(
-                            onAuthSuccess = {
-                                isAuthenticated = true
-                            }
-                        )
-                    }
+                    PermitelyApp()
                 }
             }
         }
@@ -44,13 +33,23 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MainContent() {
-    // Placeholder for main app content
-    // This will be replaced with your main navigation
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        // TODO: Implement main app navigation
+private fun PermitelyApp() {
+    // Simple state management approach for authentication flow
+    var isAuthenticated by remember { mutableStateOf(false) }
+
+    if (isAuthenticated) {
+        // Show welcome screen with logout functionality
+        WelcomeScreen(
+            onLogout = {
+                isAuthenticated = false
+            }
+        )
+    } else {
+        // Show authentication screens
+        AuthNavigation(
+            onAuthSuccess = {
+                isAuthenticated = true
+            }
+        )
     }
 }

@@ -70,6 +70,18 @@ dependencies {
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
 
+    // Networking Dependencies
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // JSON Serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // DataStore for token storage
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // Test dependencies
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

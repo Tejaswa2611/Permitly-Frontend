@@ -1,19 +1,14 @@
 package com.example.permitely.data.models
 
+import com.google.gson.annotations.SerializedName
+
 // ============================================================================
-// Authentication Data Models for Permitely - Visitor Management System
+// Authentication Data Models for Permitly - Visitor Management System
 // ============================================================================
-// This file contains all data models related to user authentication,
-// including login/signup requests, responses, and user information.
+// Updated to match backend API structure exactly
 
 /**
- * Data class representing a login request to the authentication API.
- *
- * This model is used when a user attempts to sign in to the app.
- * It contains the minimal required information for authentication.
- *
- * @param email The user's email address (used as username)
- * @param password The user's password (will be encrypted before transmission)
+ * Login request matching backend /api/auth/signin endpoint
  */
 data class LoginRequest(
     val email: String,
@@ -21,62 +16,89 @@ data class LoginRequest(
 )
 
 /**
- * Data class representing a user registration request to the authentication API.
- *
- * This model contains all the information required to create a new user account
- * in the Permitely system. Different user types have different permissions and
- * access levels within the app.
- *
- * @param name The user's full name for display purposes
- * @param email The user's email address (must be unique)
- * @param password The user's chosen password (will be encrypted)
- * @param phoneNumber The user's phone number for SMS notifications
- * @param userType The type of user account (admin, host, guard)
+ * Signup request matching backend /api/auth/signup endpoint
  */
 data class SignupRequest(
     val name: String,
     val email: String,
     val password: String,
-    val phoneNumber: String,
-    val userType: String // Values: "admin", "host", "guard"
+    @SerializedName("phone_number") val phoneNumber: String,
+    val role: String // "admin", "host", "guard"
 )
 
 /**
- * Data class representing the response from authentication API calls.
- *
- * This unified response model is used for both login and signup operations,
- * providing consistent error handling and success indicators across the app.
- *
- * @param success Whether the authentication operation was successful
- * @param message Human-readable message describing the result (success or error)
- * @param token JWT token for authenticated requests (null if authentication failed)
- * @param user User information object (null if authentication failed)
+ * Base API response structure from backend
  */
-data class AuthResponse(
+data class ApiResponse<T>(
     val success: Boolean,
-    val message: String,
-    val token: String? = null,      // JWT token for API authentication
-    val user: User? = null          // User details if authentication successful
+    val message: String? = null,
+    val data: T? = null
 )
 
 /**
- * Data class representing a user in the Permitly system.
- *
- * This model contains the core user information that is stored locally
- * and used throughout the app for personalization and access control.
- *
- * @param id Unique identifier for the user in the system
- * @param name The user's display name
- * @param email The user's email address
- * @param phoneNumber The user's phone number for notifications
- * @param userType The user's role (determines app permissions and UI)
- * @param isVerified Whether the user's account has been verified (email/phone)
+ * Token refresh request
  */
-data class User(
-    val id: String,
+data class RefreshTokenRequest(
+    val refreshToken: String
+)
+
+/**
+ * Logout request
+ */
+data class LogoutRequest(
+    val refreshToken: String
+)
+
+/**
+ * Login response data structure from backend
+ */
+data class LoginResponseData(
+    val user: UserData,
+    val tokens: TokenData
+)
+
+/**
+ * Signup response data structure from backend
+ */
+data class SignupResponseData(
+    val user: UserData,
+    val tokens: TokenData
+)
+
+/**
+ * Token refresh response data structure
+ */
+data class TokenResponseData(
+    val tokens: TokenData
+)
+
+/**
+ * User data from backend response
+ */
+data class UserData(
+    val id: Int,  // Changed from String to Int to match backend
     val name: String,
     val email: String,
-    val phoneNumber: String,
-    val userType: String,           // "admin", "host", "guard"
-    val isVerified: Boolean = false // Account verification status
+    val role: String,
+    @SerializedName("phone_number") val phoneNumber: String
+)
+
+/**
+ * Token data structure
+ */
+data class TokenData(
+    val accessToken: String,
+    val refreshToken: String
+)
+
+/**
+ * User data structure (when returned from backend)
+ */
+data class User(
+    val id: Int,  // Changed from String to Int to match backend
+    val name: String,
+    val email: String,
+    @SerializedName("phone_number") val phoneNumber: String,
+    val role: String, // "admin", "host", "guard"
+    val isVerified: Boolean = false
 )
