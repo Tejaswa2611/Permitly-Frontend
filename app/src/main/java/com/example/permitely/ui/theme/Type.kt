@@ -2,155 +2,148 @@ package com.example.permitely.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// Typography System for Permitely - Visitor Management System
+// Modern Typography System for Permitely Dark Theme
 // ============================================================================
-// This file defines the complete typography hierarchy following Material Design 3
-// guidelines. The typography is optimized for readability and accessibility
-// across different screen sizes and use cases.
 
-/**
- * Typography configuration for the Permitely app.
- *
- * This typography system provides a comprehensive set of text styles that ensure
- * consistent text appearance throughout the app. The hierarchy is designed to:
- *
- * - Maintain clear content hierarchy
- * - Ensure excellent readability on mobile devices
- * - Follow Material Design 3 typography guidelines
- * - Support accessibility requirements
- */
+// Custom font family (you can replace with your preferred fonts)
+// For now using system default with proper weights
+val PermitelyFontFamily = FontFamily.Default
+
+// Modern typography scale optimized for dark theme readability
 val Typography = Typography(
-    // ============================================================================
-    // DISPLAY STYLES - Large, attention-grabbing text
-    // ============================================================================
-    // Used for hero text, onboarding titles, and major section headers
-
+    // Display styles - For large headers and hero text
     displayLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,                    // Large size for maximum impact
-        lineHeight = 40.sp,                  // Proper line spacing for readability
-        letterSpacing = (-0.5).sp            // Tighter letter spacing for large text
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Black,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp,
+        color = TextPrimary
     ),
-
     displayMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,                    // Medium display size
-        lineHeight = 36.sp,
-        letterSpacing = 0.sp                 // Default letter spacing
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 45.sp,
+        lineHeight = 52.sp,
+        letterSpacing = 0.sp,
+        color = TextPrimary
     ),
-
     displaySmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PermitelyFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,                    // Smaller display text
-        lineHeight = 32.sp,
-        letterSpacing = 0.sp
+        fontSize = 36.sp,
+        lineHeight = 44.sp,
+        letterSpacing = 0.sp,
+        color = TextPrimary
     ),
 
-    // ============================================================================
-    // HEADLINE STYLES - Page titles and section headers
-    // ============================================================================
-    // Used for screen titles, card headers, and important section divisions
-
+    // Headline styles - For section headers
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold,    // Slightly lighter than display
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = 0.sp,
+        color = TextPrimary
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = 0.sp,
+        color = TextPrimary
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        letterSpacing = 0.sp,
+        color = TextPrimary
+    ),
+
+    // Title styles - For card titles and important text
+    titleLarge = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
+        color = TextPrimary
     ),
-
-    headlineMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.sp
-    ),
-
-    // ============================================================================
-    // TITLE STYLES - Component titles and emphasis text
-    // ============================================================================
-    // Used for dialog titles, list headers, and emphasized content
-
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,      // Medium weight for titles
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.sp
-    ),
-
     titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PermitelyFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp               // Slight letter spacing for clarity
+        lineHeight = 24.sp,
+        letterSpacing = 0.15.sp,
+        color = TextPrimary
     ),
-
-    // ============================================================================
-    // BODY STYLES - Main content text
-    // ============================================================================
-    // Used for paragraphs, descriptions, and primary content
-
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,      // Regular weight for body text
-        fontSize = 16.sp,                    // Comfortable reading size
-        lineHeight = 24.sp,                  // 1.5x line height for readability
-        letterSpacing = 0.5.sp               // Improved letter spacing for reading
-    ),
-
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,                    // Standard body text size
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-
-    bodySmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,                    // Small body text for captions
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
-    ),
-
-    // ============================================================================
-    // LABEL STYLES - Button text and interactive elements
-    // ============================================================================
-    // Used for buttons, tabs, chips, and other interactive components
-
-    labelLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,      // Medium weight for emphasis
+    titleSmall = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.1.sp,
+        color = TextSecondary
     ),
 
+    // Body styles - For main content text
+    bodyLarge = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp,
+        color = TextSecondary
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp,
+        color = TextSecondary
+    ),
+    bodySmall = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp,
+        color = TextTertiary
+    ),
+
+    // Label styles - For buttons, tabs, and labels
+    labelLarge = TextStyle(
+        fontFamily = PermitelyFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
+        color = TextPrimary
+    ),
     labelMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PermitelyFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.5.sp,
+        color = TextSecondary
     ),
-
     labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PermitelyFontFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,                    // Smallest label size
+        fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.5.sp,
+        color = TextTertiary
     )
 )

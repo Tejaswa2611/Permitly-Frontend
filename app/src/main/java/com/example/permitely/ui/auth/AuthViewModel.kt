@@ -37,8 +37,11 @@ class AuthViewModel @Inject constructor(
      * Login with backend API integration
      */
     fun login(email: String, password: String) {
+        // Trim email to remove leading/trailing spaces
+        val trimmedEmail = email.trim()
+
         // Client-side validation before API call - matching backend validation exactly
-        if (!isValidEmailBackend(email)) {
+        if (!isValidEmailBackend(trimmedEmail)) {
             _uiState.value = AuthUiState(errorMessage = "Please enter a valid email address")
             return
         }
@@ -49,7 +52,7 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            authRepository.login(LoginRequest(email, password)).collect { result ->
+            authRepository.login(LoginRequest(trimmedEmail, password)).collect { result ->
                 _uiState.value = when (result) {
                     is AuthResult.Loading -> AuthUiState(isLoading = true)
                     is AuthResult.Success -> AuthUiState(isSuccess = true)
@@ -64,13 +67,18 @@ class AuthViewModel @Inject constructor(
      * Note: Using 'role' field as required by backend instead of 'userType'
      */
     fun signup(name: String, email: String, password: String, phoneNumber: String, userType: String) {
+        // Trim email to remove leading/trailing spaces and trim name
+        val trimmedEmail = email.trim()
+        val trimmedName = name.trim()
+        val trimmedPhone = phoneNumber.trim()
+
         // Client-side validation before API call - matching backend validation exactly
-        if (name.isBlank()) {
+        if (trimmedName.isBlank()) {
             _uiState.value = AuthUiState(errorMessage = "Name is required")
             return
         }
 
-        if (!isValidEmailBackend(email)) {
+        if (!isValidEmailBackend(trimmedEmail)) {
             _uiState.value = AuthUiState(errorMessage = "Please enter a valid email address")
             return
         }
@@ -82,7 +90,7 @@ class AuthViewModel @Inject constructor(
             return
         }
 
-        if (phoneNumber.length < 10) {
+        if (trimmedPhone.length < 10) {
             _uiState.value = AuthUiState(errorMessage = "Please enter a valid phone number")
             return
         }
@@ -90,10 +98,10 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.signup(
                 SignupRequest(
-                    name = name,
-                    email = email,
+                    name = trimmedName,
+                    email = trimmedEmail,
                     password = password,
-                    phoneNumber = phoneNumber,
+                    phoneNumber = trimmedPhone,
                     role = userType // Backend expects 'role' field
                 )
             ).collect { result ->

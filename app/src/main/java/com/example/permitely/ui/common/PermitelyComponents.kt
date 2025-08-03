@@ -1,6 +1,7 @@
 package com.example.permitely.ui.common
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,6 +11,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -17,29 +21,11 @@ import androidx.compose.ui.unit.dp
 import com.example.permitely.ui.theme.*
 
 // ============================================================================
-// Common UI Components for Permitely - Visitor Management System
+// Minimalist UI Components for Permitely - Updated for Dark Theme
 // ============================================================================
-// This file contains reusable UI components that maintain design consistency
-// across the entire app while following Material Design 3 principles.
 
 /**
- * Custom text field component for the Permitely app.
- *
- * This component provides a consistent text input experience across the app with:
- * - Unified styling following the app's design system
- * - Built-in password visibility toggle for secure fields
- * - Error state handling with custom error messages
- * - Proper keyboard type configuration
- * - Accessibility support
- *
- * @param value Current text value in the field
- * @param onValueChange Callback triggered when text changes
- * @param label Label text displayed above/within the field
- * @param modifier Compose modifier for styling and layout
- * @param isPassword Whether this field should hide input (password field)
- * @param keyboardType Type of keyboard to show (email, phone, etc.)
- * @param isError Whether the field is in error state
- * @param errorMessage Error message to display below the field
+ * Clean text field with dark theme styling
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,50 +39,68 @@ fun PermitelyTextField(
     isError: Boolean = false,
     errorMessage: String? = null
 ) {
-    // State to manage password visibility toggle
     var passwordVisible by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
 
     Column(modifier = modifier) {
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
-            label = { Text(label) },
+            onValueChange = { newValue ->
+                onValueChange(newValue)
+                isFocused = newValue.isNotEmpty()
+            },
+            label = {
+                Text(
+                    label,
+                    color = if (isFocused) Primary else TextTertiary
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
-            // Show/hide password based on visibility state
             visualTransformation = if (isPassword && !passwordVisible) {
-                PasswordVisualTransformation()  // Hide password with dots
+                PasswordVisualTransformation()
             } else {
-                VisualTransformation.None       // Show text normally
+                VisualTransformation.None
             },
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            // Add password visibility toggle icon for password fields
             trailingIcon = if (isPassword) {
                 {
                     val image = if (passwordVisible) Icons.Filled.Visibility
                     else Icons.Filled.VisibilityOff
 
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(imageVector = image, contentDescription = null)
+                        Icon(
+                            imageVector = image,
+                            contentDescription = null,
+                            tint = if (isFocused) Primary else TextTertiary
+                        )
                     }
                 }
             } else null,
             isError = isError,
-            // Apply custom colors from the app theme
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Primary,       // Blue border when focused
-                unfocusedBorderColor = BorderLight, // Light gray when not focused
-                errorBorderColor = Error,           // Red border for errors
-                focusedLabelColor = Primary,        // Blue label when focused
-                unfocusedLabelColor = TextSecondary // Gray label when not focused
+                focusedBorderColor = Primary,
+                unfocusedBorderColor = BorderLight,
+                errorBorderColor = Error,
+                focusedLabelColor = Primary,
+                unfocusedLabelColor = TextTertiary,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextSecondary,
+                focusedContainerColor = InputBackground,
+                unfocusedContainerColor = InputBackground,
+                errorContainerColor = InputBackground,
+                focusedTrailingIconColor = Primary,
+                unfocusedTrailingIconColor = TextTertiary,
+                cursorColor = Primary,
+                errorCursorColor = Error
             ),
-            shape = RoundedCornerShape(12.dp)       // Rounded corners for modern look
+            shape = RoundedCornerShape(16.dp)
         )
 
-        // Display error message below the field if there's an error
+        // Simple error message display
         if (isError && errorMessage != null) {
             Text(
                 text = errorMessage,
-                color = Error,                      // Red color for error text
+                color = Error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp)
             )
@@ -105,20 +109,7 @@ fun PermitelyTextField(
 }
 
 /**
- * Primary button component for the Permitely app.
- *
- * This component provides the main call-to-action button styling with:
- * - Consistent brand colors and styling
- * - Loading state with progress indicator
- * - Proper disabled state handling
- * - Accessibility support
- * - Rounded corners for modern appearance
- *
- * @param text Button text to display
- * @param onClick Callback triggered when button is clicked
- * @param modifier Compose modifier for styling and layout
- * @param enabled Whether the button is clickable
- * @param loading Whether to show loading spinner instead of text
+ * Clean gradient button with dark theme styling
  */
 @Composable
 fun PermitelyButton(
@@ -128,49 +119,60 @@ fun PermitelyButton(
     enabled: Boolean = true,
     loading: Boolean = false
 ) {
+    // Gradient background for dark theme
+    val gradientBrush = Brush.horizontalGradient(
+        colors = if (enabled && !loading) {
+            listOf(GradientStart, GradientMiddle, GradientEnd)
+        } else {
+            listOf(TextDisabled, TextTertiary)
+        }
+    )
+
     Button(
-        onClick = onClick,
+        onClick = {
+            if (!loading) {
+                onClick()
+            }
+        },
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),                     // Standard button height for touch targets
-        enabled = enabled && !loading,          // Disable when loading or explicitly disabled
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(gradientBrush),
+        enabled = enabled && !loading,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Primary,           // Blue background
-            contentColor = OnPrimary,           // White text
-            disabledContainerColor = TextDisabled // Gray when disabled
+            containerColor = Color.Transparent,
+            contentColor = OnPrimary,
+            disabledContainerColor = Color.Transparent,
+            disabledContentColor = TextDisabled
         ),
-        shape = RoundedCornerShape(12.dp)       // Rounded corners
+        shape = RoundedCornerShape(16.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 8.dp,
+            pressedElevation = 4.dp,
+            disabledElevation = 0.dp
+        )
     ) {
         if (loading) {
-            // Show loading spinner when operation is in progress
+            // Loading indicator with proper dark theme colors
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                color = OnPrimary,              // White spinner
-                strokeWidth = 2.dp
+                color = OnPrimary,
+                strokeWidth = 2.dp,
+                trackColor = OnPrimary.copy(alpha = 0.3f)
             )
         } else {
-            // Show button text normally
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
+                color = OnPrimary
             )
         }
     }
 }
 
 /**
- * Secondary outlined button component for the Permitely app.
- *
- * This component provides an alternative button style for secondary actions with:
- * - Outlined style instead of filled background
- * - Consistent brand colors for borders and text
- * - Same size and accessibility as primary button
- * - Modern rounded corners
- *
- * @param text Button text to display
- * @param onClick Callback triggered when button is clicked
- * @param modifier Compose modifier for styling and layout
- * @param enabled Whether the button is clickable
+ * Clean outlined button with dark theme styling
  */
 @Composable
 fun PermitelyOutlinedButton(
@@ -183,20 +185,27 @@ fun PermitelyOutlinedButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),                     // Same height as primary button
+            .height(56.dp),
         enabled = enabled,
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = Primary              // Blue text color
+            contentColor = Primary,
+            disabledContentColor = TextDisabled,
+            containerColor = Surface
         ),
         border = BorderStroke(
-            width = 1.dp,
-            color = Primary                     // Blue border
+            width = 1.5.dp,
+            color = if (enabled) Primary else BorderMedium
         ),
-        shape = RoundedCornerShape(12.dp)       // Rounded corners
+        shape = RoundedCornerShape(16.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 6.dp
+        )
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.labelLarge,
+            color = if (enabled) Primary else TextDisabled
         )
     }
 }
