@@ -165,48 +165,53 @@ private fun VisitorsListTopBar(
     onNavigateBack: () -> Unit,
     visitorsCount: Int
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        color = Surface,
+        shadowElevation = 4.dp,
+        tonalElevation = 4.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Primary
-                )
-            }
+        Column {
+            // Add status bar spacer
+            Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Primary
+                    )
+                }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "All Visitors",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "$visitorsCount visitors found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            }
+                Spacer(modifier = Modifier.width(8.dp))
 
-            IconButton(onClick = { /* TODO: Add sort/filter options */ }) {
-                Icon(
-                    imageVector = Icons.Default.Sort,
-                    contentDescription = "Sort",
-                    tint = TextSecondary
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "All Visitors",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "$visitorsCount visitors found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                }
+
+                IconButton(onClick = { /* TODO: Add sort/filter options */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort",
+                        tint = TextSecondary
+                    )
+                }
             }
         }
     }

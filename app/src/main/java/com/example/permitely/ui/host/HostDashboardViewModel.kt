@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.permitely.data.models.DashboardStatsUiState
 import com.example.permitely.data.repository.DashboardRepository
+import com.example.permitely.data.repository.VisitorRepository
 import com.example.permitely.data.storage.TokenStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,14 +21,23 @@ import javax.inject.Inject
 @HiltViewModel
 class HostDashboardViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
+    private val visitorRepository: VisitorRepository,
     private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardStatsUiState())
     val uiState: StateFlow<DashboardStatsUiState> = _uiState.asStateFlow()
 
+    // Recent visitors state
+    private val _recentVisitors = MutableStateFlow<List<RecentVisitor>>(emptyList())
+    val recentVisitors: StateFlow<List<RecentVisitor>> = _recentVisitors.asStateFlow()
+
+    private val _isLoadingVisitors = MutableStateFlow(false)
+    val isLoadingVisitors: StateFlow<Boolean> = _isLoadingVisitors.asStateFlow()
+
     init {
         loadDashboardData()
+        loadRecentVisitors()
     }
 
     /**
@@ -82,6 +92,45 @@ class HostDashboardViewModel @Inject constructor(
     }
 
     /**
+     * Load recent visitors from the API
+     */
+    private fun loadRecentVisitors() {
+        viewModelScope.launch {
+            _isLoadingVisitors.value = true
+            visitorRepository.getRecentVisitors().collect { result ->
+                result.fold(
+                    onSuccess = { visitors ->
+                        // Convert API visitors to UI visitors (only need name, purpose, time, status)
+                        val recentVisitors = visitors.map { apiVisitor ->
+                            RecentVisitor(
+                                name = apiVisitor.name,
+                                purpose = apiVisitor.purposeOfVisit,
+                                time = formatTime(apiVisitor.createdAt),
+                                status = apiVisitor.status
+                            )
+                        }
+                        _recentVisitors.value = recentVisitors
+                        println("DEBUG: Loaded ${recentVisitors.size} recent visitors")
+                    },
+                    onFailure = { exception ->
+                        println("DEBUG: Failed to load recent visitors: ${exception.message}")
+                        // Keep empty list on error
+                        _recentVisitors.value = emptyList()
+                    }
+                )
+                _isLoadingVisitors.value = false
+            }
+        }
+    }
+
+    /**
+     * Refresh recent visitors
+     */
+    fun refreshRecentVisitors() {
+        loadRecentVisitors()
+    }
+
+    /**
      * Refresh dashboard statistics
      */
     fun refresh() {
@@ -94,4 +143,27 @@ class HostDashboardViewModel @Inject constructor(
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
+
+    /**
+     * Format timestamp to readable time
+     */
+    private fun formatTime(timestamp: String): String {
+        return try {
+            // Extract time from ISO timestamp: "2025-08-10T08:00:00Z" -> "08:00"
+            timestamp.split("T")[1].split("Z")[0].substring(0, 5)
+        } catch (e: Exception) {
+            "N/A"
+        }
+    }
 }
+
+/**
+ * Data class for recent visitor UI display
+ * Only contains fields needed for dashboard display
+ */
+data class RecentVisitor(
+    val name: String,
+    val purpose: String,
+    val time: String, // Formatted time string
+    val status: String // PENDING, APPROVED, REJECTED, EXPIRED
+)

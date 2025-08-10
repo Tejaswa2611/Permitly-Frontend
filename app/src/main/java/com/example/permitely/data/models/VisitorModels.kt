@@ -90,3 +90,48 @@ data class GetVisitorByIdResponse(
 data class GetVisitorByIdData(
     val visitor: VisitorData // Visitor already contains passes array
 )
+
+/**
+ * Get recent visitors API response wrapper
+ */
+data class GetRecentVisitorsResponse(
+    val success: Boolean,
+    val data: List<VisitorData>? = null,
+    val message: String? = null
+)
+
+/**
+ * Get notifications API response wrapper
+ */
+data class GetNotificationsResponse(
+    val status: String,
+    val results: Int? = null,
+    val data: GetNotificationsData? = null,
+    val message: String? = null
+)
+
+/**
+ * Get notifications response data
+ */
+data class GetNotificationsData(
+    val notifications: List<NotificationData>
+)
+
+/**
+ * Notification data model from API response
+ * Only includes fields needed for UI: name, created_at, status, content
+ */
+data class NotificationData(
+    @SerializedName("notification_id") val notificationId: Int,
+    val content: String,
+    @SerializedName("created_at") val createdAt: String,
+    val visitor: VisitorNotificationData?
+)
+
+/**
+ * Visitor data in notification (simplified)
+ */
+data class VisitorNotificationData(
+    val name: String,
+    val status: String // PENDING, APPROVED, REJECTED, EXPIRED
+)

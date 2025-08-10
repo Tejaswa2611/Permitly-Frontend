@@ -4,6 +4,7 @@ import com.example.permitely.data.models.CreateVisitorRequest
 import com.example.permitely.data.models.CreateVisitorResponseData
 import com.example.permitely.data.models.VisitorData
 import com.example.permitely.data.models.GetVisitorByIdData
+import com.example.permitely.data.models.NotificationData
 import com.example.permitely.data.network.VisitorApiService
 import com.example.permitely.data.storage.TokenStorage
 import kotlinx.coroutines.flow.Flow
@@ -253,6 +254,116 @@ class VisitorRepository @Inject constructor(
             }
         } catch (e: Exception) {
             println("DEBUG: Get visitor by ID exception: ${e.message}")
+            e.printStackTrace()
+
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
+                else -> "Network error: ${e.message ?: "Unknown error"}"
+            }
+            emit(Result.failure(Exception(errorMessage)))
+        }
+    }
+
+    /**
+     * Get recent visitors for the authenticated host
+     * @return Flow<Result<List<VisitorData>>> - Flow containing list of recent visitors or error
+     */
+    fun getRecentVisitors(): Flow<Result<List<VisitorData>>> = flow {
+        try {
+            val token = tokenStorage.getAccessToken().first()
+            if (token == null || token.isEmpty()) {
+                emit(Result.failure(Exception("No access token available")))
+                return@flow
+            }
+
+            println("DEBUG: Getting recent visitors")
+
+            val response = visitorApiService.getRecentVisitors("Bearer $token")
+
+            println("DEBUG: Get recent visitors API response code: ${response.code()}")
+            println("DEBUG: Get recent visitors API response successful: ${response.isSuccessful}")
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                println("DEBUG: Get recent visitors response body: $body")
+
+                if (body?.success == true && body.data != null) {
+                    println("DEBUG: Found ${body.data.size} recent visitors")
+                    emit(Result.success(body.data))
+                } else {
+                    val errorMessage = body?.message ?: "Failed to fetch recent visitors"
+                    println("DEBUG: Get recent visitors failed: $errorMessage")
+                    emit(Result.failure(Exception(errorMessage)))
+                }
+            } else {
+                val errorMessage = when (response.code()) {
+                    401 -> "Authentication failed. Please login again"
+                    403 -> "You don't have permission to view visitors"
+                    404 -> "No recent visitors found"
+                    500 -> "Server error. Please try again later"
+                    else -> "Failed to fetch recent visitors. Please try again"
+                }
+                println("DEBUG: Get recent visitors HTTP error: $errorMessage")
+                emit(Result.failure(Exception(errorMessage)))
+            }
+        } catch (e: Exception) {
+            println("DEBUG: Get recent visitors exception: ${e.message}")
+            e.printStackTrace()
+
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
+                else -> "Network error: ${e.message ?: "Unknown error"}"
+            }
+            emit(Result.failure(Exception(errorMessage)))
+        }
+    }
+
+    /**
+     * Get notifications for the authenticated user
+     * @return Flow<Result<List<NotificationData>>> - Flow containing list of notifications or error
+     */
+    fun getNotifications(): Flow<Result<List<NotificationData>>> = flow {
+        try {
+            val token = tokenStorage.getAccessToken().first()
+            if (token == null || token.isEmpty()) {
+                emit(Result.failure(Exception("No access token available")))
+                return@flow
+            }
+
+            println("DEBUG: Getting notifications")
+
+            val response = visitorApiService.getNotifications("Bearer $token")
+
+            println("DEBUG: Get notifications API response code: ${response.code()}")
+            println("DEBUG: Get notifications API response successful: ${response.isSuccessful}")
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                println("DEBUG: Get notifications response body: $body")
+
+                if (body?.status == "success" && body.data != null) {
+                    println("DEBUG: Found ${body.data.notifications.size} notifications")
+                    emit(Result.success(body.data.notifications))
+                } else {
+                    val errorMessage = body?.message ?: "Failed to fetch notifications"
+                    println("DEBUG: Get notifications failed: $errorMessage")
+                    emit(Result.failure(Exception(errorMessage)))
+                }
+            } else {
+                val errorMessage = when (response.code()) {
+                    401 -> "Authentication failed. Please login again"
+                    403 -> "You don't have permission to view notifications"
+                    404 -> "No notifications found"
+                    500 -> "Server error. Please try again later"
+                    else -> "Failed to fetch notifications. Please try again"
+                }
+                println("DEBUG: Get notifications HTTP error: $errorMessage")
+                emit(Result.failure(Exception(errorMessage)))
+            }
+        } catch (e: Exception) {
+            println("DEBUG: Get notifications exception: ${e.message}")
             e.printStackTrace()
 
             val errorMessage = when (e) {

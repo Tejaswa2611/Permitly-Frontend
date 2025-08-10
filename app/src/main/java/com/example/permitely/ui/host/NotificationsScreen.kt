@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
@@ -32,32 +34,46 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    viewModel: NotificationsViewModel = hiltViewModel()
 ) {
-    var notifications by remember { mutableStateOf(getDummyNotifications()) }
+    // Observe ViewModel state
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Convert API notifications to UI notifications
+    val notifications = remember(uiState.notifications) {
+        uiState.notifications.map { apiNotification ->
+            viewModel.convertToUiNotification(apiNotification)
+        }
+    }
+
     var isMarkingAllRead by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // Count unread notifications
+    // Count unread notifications (all are unread since API doesn't provide read status)
     val unreadCount = notifications.count { !it.isRead }
 
-    // Mark all as read function
+    // Handle error state
+    uiState.errorMessage?.let { errorMessage ->
+        LaunchedEffect(errorMessage) {
+            println("Error loading notifications: $errorMessage")
+            viewModel.clearError()
+        }
+    }
+
+    // Mark all as read function (local UI state only)
     fun markAllAsRead() {
         scope.launch {
             isMarkingAllRead = true
             delay(1000) // Simulate API call
-            notifications = notifications.map { it.copy(isRead = true) }
+            // In a real implementation, you would call an API to mark as read
             isMarkingAllRead = false
         }
     }
 
-    // Mark single notification as read
+    // Mark single notification as read (local UI state only)
     fun markAsRead(notificationId: String) {
-        notifications = notifications.map { notification ->
-            if (notification.id == notificationId) {
-                notification.copy(isRead = true)
-            } else notification
-        }
+        // In a real implementation, you would call an API to mark as read
     }
 
     Box(
@@ -119,71 +135,84 @@ private fun NotificationsTopBar(
     onNavigateBack: () -> Unit,
     unreadCount: Int
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        color = Surface,
+        shadowElevation = 4.dp,
+        tonalElevation = 4.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Primary
-                )
-            }
+        Column {
+            // Add status bar spacer
+            Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Notifications",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (unreadCount > 0) "$unreadCount unread notifications" else "All caught up!",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (unreadCount > 0) Primary else TextSecondary
-                )
-            }
-
-            // Notification icon with badge
-            if (unreadCount > 0) {
-                Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onNavigateBack) {
                     Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = Primary,
-                        modifier = Modifier.size(24.dp)
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Primary
                     )
+                }
 
-                    // Unread badge
-                    Card(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .offset(x = 8.dp, y = (-8).dp),
-                        colors = CardDefaults.cardColors(containerColor = Error),
-                        shape = CircleShape
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (unreadCount > 9) "9+" else unreadCount.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Notifications",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (unreadCount > 0) "$unreadCount unread notifications" else "All notifications read",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (unreadCount > 0) Primary else TextSecondary
+                    )
+                }
+
+                // Notification bell icon with badge
+                if (unreadCount > 0) {
+                    Box {
+                        IconButton(onClick = { /* TODO: Add notification settings */ }) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = Primary
                             )
                         }
+                        // Unread count badge
+                        Surface(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .offset(x = 6.dp, y = 6.dp),
+                            color = Error,
+                            shape = CircleShape
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Text(
+                                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                    color = OnError,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    IconButton(onClick = { /* TODO: Add notification settings */ }) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsNone,
+                            contentDescription = "No notifications",
+                            tint = TextSecondary
+                        )
                     }
                 }
             }

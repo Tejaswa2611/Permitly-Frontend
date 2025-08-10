@@ -188,7 +188,7 @@ fun HostDashboardScreen(
 
                     // Recent Visitors
                     item {
-                        RecentVisitorsSection()
+                        RecentVisitorsSection(viewModel = viewModel)
                     }
 
                     // Bottom spacing for FAB
@@ -512,29 +512,53 @@ private fun QuickActionButton(
 }
 
 @Composable
-private fun RecentVisitorsSection() {
+private fun RecentVisitorsSection(
+    viewModel: HostDashboardViewModel = hiltViewModel()
+) {
+    // Observe recent visitors from ViewModel
+    val recentVisitors by viewModel.recentVisitors.collectAsStateWithLifecycle()
+    val isLoadingVisitors by viewModel.isLoadingVisitors.collectAsStateWithLifecycle()
+
     Column {
-        Text(
-            text = "Recent Visitors",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextPrimary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Recent Visitors",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            
+            if (isLoadingVisitors) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = Primary
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Static hardcoded recent visitors data
-        val recentVisitors = listOf(
-            RecentVisitor("Alice Johnson", "Delivery", "2:30 PM", "Active"),
-            RecentVisitor("Bob Wilson", "Meeting", "1:45 PM", "Completed"),
-            RecentVisitor("Carol Davis", "Maintenance", "12:15 PM", "Active"),
-            RecentVisitor("David Brown", "Guest Visit", "11:30 AM", "Completed"),
-            RecentVisitor("Emma Taylor", "Business", "10:45 AM", "Completed")
-        )
-
-        recentVisitors.forEach { visitor ->
-            RecentVisitorItem(visitor = visitor)
-            if (visitor != recentVisitors.last()) {
-                Spacer(modifier = Modifier.height(8.dp))
+        if (isLoadingVisitors && recentVisitors.isEmpty()) {
+            // Show loading state
+            repeat(3) {
+                RecentVisitorItemSkeleton()
+                if (it < 2) Spacer(modifier = Modifier.height(8.dp))
+            }
+        } else if (recentVisitors.isEmpty()) {
+            // Show empty state
+            EmptyRecentVisitorsState()
+        } else {
+            // Show actual visitors from API
+            recentVisitors.forEach { visitor ->
+                RecentVisitorItem(visitor = visitor)
+                if (visitor != recentVisitors.last()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }
@@ -632,10 +656,115 @@ private fun StatusChip(status: String) {
     }
 }
 
-// Data class for recent visitors
-data class RecentVisitor(
-    val name: String,
-    val purpose: String,
-    val time: String,
-    val status: String
-)
+@Composable
+private fun RecentVisitorItemSkeleton() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar skeleton
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = TextTertiary.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    )
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                // Name skeleton
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(16.dp)
+                        .background(
+                            color = TextTertiary.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                // Purpose skeleton
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.4f)
+                        .height(14.dp)
+                        .background(
+                            color = TextTertiary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                // Time skeleton
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(14.dp)
+                        .background(
+                            color = TextTertiary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                // Status skeleton
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(20.dp)
+                        .background(
+                            color = TextTertiary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyRecentVisitorsState() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.PersonOff,
+                contentDescription = "No visitors",
+                tint = TextTertiary,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No recent visitors",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextSecondary,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "Visitor activity will appear here",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextTertiary
+            )
+        }
+    }
+}
