@@ -610,7 +610,12 @@ data class Visitor(
     val date: String,
     val time: String,
     val status: VisitorStatus,
-    val createdAt: String
+    val createdAt: String,
+    // QR Code and Pass information
+    val hasQRCode: Boolean = false,
+    val qrCodeUrl: String? = null,
+    val passId: String? = null,
+    val expiryTime: String? = null
 )
 
 enum class VisitorStatus(val displayName: String) {

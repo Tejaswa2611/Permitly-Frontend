@@ -6,7 +6,9 @@ import com.example.permitely.data.models.LoginRequest
 import com.example.permitely.data.models.SignupRequest
 import com.example.permitely.data.repository.AuthRepository
 import com.example.permitely.data.repository.AuthResult
+import com.example.permitely.data.storage.TokenStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -164,6 +166,20 @@ class AuthViewModel @Inject constructor(
                 // Handle logout result if needed
             }
         }
+    }
+
+    /**
+     * Check if user is currently logged in
+     */
+    fun isLoggedIn(): Flow<Boolean> {
+        return authRepository.isLoggedIn()
+    }
+
+    /**
+     * Get stored user information
+     */
+    fun getUserInfo(): Flow<TokenStorage.UserInfo?> {
+        return authRepository.getUserInfo()
     }
 
     /**

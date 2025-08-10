@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyButton
 import com.example.permitely.ui.common.PermitelyTextField
 import com.example.permitely.ui.theme.*
@@ -30,7 +32,8 @@ import java.util.*
 @Composable
 fun CreateVisitorScreen(
     onNavigateBack: () -> Unit = {},
-    onVisitorCreated: () -> Unit = {}
+    onVisitorCreated: (visitorData: com.example.permitely.data.models.CreateVisitorResponseData) -> Unit = {},
+    viewModel: CreateVisitorViewModel = hiltViewModel()
 ) {
     var visitorName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -47,7 +50,6 @@ fun CreateVisitorScreen(
     var dateTimeError by remember { mutableStateOf("") }
 
     // UI states
-    var isLoading by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -58,6 +60,46 @@ fun CreateVisitorScreen(
     // Date and Time Picker States
     val datePickerState = rememberDatePickerState()
     val timePickerState = rememberTimePickerState()
+
+    // Observe ViewModel state
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var hasShownSuccessForCurrentVisitor by remember { mutableStateOf(false) }
+    var isScreenActive by remember { mutableStateOf(true) }
+
+    // Reset ViewModel state when screen is first composed
+    LaunchedEffect(Unit) {
+        isScreenActive = true
+        viewModel.resetState()
+        showSuccessDialog = false
+        hasShownSuccessForCurrentVisitor = false
+    }
+
+    // Mark screen as inactive when leaving
+    DisposableEffect(Unit) {
+        onDispose {
+            isScreenActive = false
+        }
+    }
+
+    // Handle API response states - only show dialog once per visitor creation and when screen is active
+    LaunchedEffect(uiState.isSuccess, uiState.createdVisitorData, isScreenActive) {
+        if (isScreenActive && uiState.isSuccess && uiState.createdVisitorData != null && !hasShownSuccessForCurrentVisitor) {
+            showSuccessDialog = true
+            hasShownSuccessForCurrentVisitor = true
+        }
+    }
+
+    // Handle errors from API
+    LaunchedEffect(uiState.error) {
+        if (uiState.error != null) {
+            // Clear previous field errors and show API error
+            nameError = ""
+            emailError = ""
+            phoneError = ""
+            purposeError = ""
+            dateTimeError = ""
+        }
+    }
 
     // Validation functions
     fun validateForm(): Boolean {
@@ -113,11 +155,18 @@ fun CreateVisitorScreen(
     fun submitVisitor() {
         if (validateForm()) {
             scope.launch {
-                isLoading = true
-                // Simulate API call
-                delay(2000)
-                isLoading = false
-                showSuccessDialog = true
+                // Clear previous errors
+                viewModel.clearError()
+
+                // Submit visitor data with proper method call
+                viewModel.createVisitorWithDateTime(
+                    name = visitorName,
+                    email = email,
+                    phoneNumber = phoneNumber,
+                    purposeOfVisit = purposeOfVisit,
+                    selectedDate = selectedDate,
+                    selectedTime = selectedTime
+                )
             }
         }
     }
@@ -186,7 +235,7 @@ fun CreateVisitorScreen(
                 PermitelyButton(
                     text = "Create Visitor Appointment",
                     onClick = { submitVisitor() },
-                    loading = isLoading,
+                    loading = uiState.isLoading,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
@@ -253,11 +302,29 @@ fun CreateVisitorScreen(
     }
 
     // Success Dialog
-    if (showSuccessDialog) {
+    if (showSuccessDialog && isScreenActive) {
         SuccessDialog(
             onDismiss = {
                 showSuccessDialog = false
-                onVisitorCreated()
+                hasShownSuccessForCurrentVisitor = false
+
+                // Only proceed with navigation if we have valid data and screen is still active
+                val currentVisitorData = uiState.createdVisitorData
+                if (isScreenActive && currentVisitorData != null) {
+                    try {
+                        onVisitorCreated(currentVisitorData)
+                    } catch (e: Exception) {
+                        // Log error and just navigate back instead of crashing
+                        println("Error in onVisitorCreated callback: ${e.message}")
+                        onNavigateBack()
+                    }
+                } else {
+                    // If no valid data, just go back to dashboard
+                    onNavigateBack()
+                }
+
+                // Always reset the ViewModel state after handling
+                viewModel.resetState()
             }
         )
     }

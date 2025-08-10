@@ -293,39 +293,6 @@ private fun VisitorInfoCard(visitor: Visitor) {
 }
 
 @Composable
-private fun InfoRow(
-    icon: ImageVector,
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Secondary,
-            modifier = Modifier.size(20.dp)
-        )
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextPrimary
-            )
-        }
-    }
-}
-
-@Composable
 private fun StatusBadge(status: VisitorStatus) {
     val (backgroundColor, textColor) = when (status) {
         VisitorStatus.PENDING -> Secondary.copy(alpha = 0.1f) to Secondary
@@ -490,8 +457,139 @@ private fun QRCodePassCard(
                 )
             }
 
-            if (hasPass) {
-                // Pass details
+            if (visitor.hasQRCode && visitor.qrCodeUrl != null) {
+                // Pass details with QR code URL
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Pass Generated Successfully",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Success,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    // Pass Information
+                    visitor.passId?.let { passId ->
+                        InfoRow(
+                            icon = Icons.Default.Badge,
+                            label = "Pass ID",
+                            value = "PASS-$passId"
+                        )
+                    }
+
+                    visitor.expiryTime?.let { expiryTime ->
+                        InfoRow(
+                            icon = Icons.Default.Schedule,
+                            label = "Valid Until",
+                            value = formatDateTime(expiryTime)
+                        )
+                    }
+
+                    // QR Code URL Section
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.05f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCode,
+                                    contentDescription = "QR Code",
+                                    tint = Primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "QR Code Access",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // QR Code URL Link
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Surface),
+                                shape = RoundedCornerShape(8.dp),
+                                onClick = onShowQR
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Text(
+                                        text = "QR Code URL:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = visitor.qrCodeUrl,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "📧 QR code has been emailed to visitor",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Success,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onShowQR,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                contentColor = OnPrimary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("View QR")
+                        }
+
+                        OutlinedButton(
+                            onClick = { /* Share QR Code URL */ },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Share")
+                        }
+                    }
+                }
+            } else if (hasPass) {
+                // Legacy pass without QR code URL (fallback)
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -552,11 +650,79 @@ private fun QRCodePassCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
+
+                Button(
+                    onClick = onGeneratePass,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Success,
+                        contentColor = OnSuccess
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Generate Digital Pass")
+                }
             }
         }
     }
 }
 
+// Helper composable for displaying information rows
+@Composable
+private fun InfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = TextTertiary,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextTertiary,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+// Helper function to format date time
+private fun formatDateTime(isoDateTime: String): String {
+    return try {
+        // Simple formatting - you can enhance this with proper date formatting
+        val parts = isoDateTime.split("T")
+        if (parts.size >= 2) {
+            val date = parts[0]
+            val time = parts[1].split("Z")[0].substring(0, 5) // Get HH:mm
+            "$date at $time"
+        } else {
+            isoDateTime
+        }
+    } catch (e: Exception) {
+        isoDateTime
+    }
+}
+
+// Missing ActionButtonsSection function
 @Composable
 private fun ActionButtonsSection(
     visitor: Visitor,
@@ -583,81 +749,69 @@ private fun ActionButtonsSection(
                 fontWeight = FontWeight.SemiBold
             )
 
-            // Primary actions
-            if (visitor.status == VisitorStatus.APPROVED) {
-                if (hasPass) {
-                    ActionButton(
-                        icon = Icons.Default.Share,
-                        text = "Share QR Code",
-                        containerColor = Primary,
-                        contentColor = OnPrimary,
-                        onClick = onShareQR
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Edit Button
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Primary
                     )
-                } else {
-                    ActionButton(
-                        icon = Icons.Default.QrCode,
-                        text = "Generate Pass",
-                        containerColor = Success,
-                        contentColor = Color.White,
-                        onClick = onGeneratePass
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Edit")
+                }
+
+                // Delete Button
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Error
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Error)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Delete")
                 }
             }
 
-            // Secondary actions
-            ActionButton(
-                icon = Icons.Default.Edit,
-                text = "Edit Details",
-                containerColor = Secondary.copy(alpha = 0.1f),
-                contentColor = Secondary,
-                onClick = onEdit
-            )
-
-            ActionButton(
-                icon = Icons.Default.Delete,
-                text = "Delete Visitor",
-                containerColor = Error.copy(alpha = 0.1f),
-                contentColor = Error,
-                onClick = onDelete
-            )
+            if (!hasPass && visitor.status == VisitorStatus.APPROVED) {
+                Button(
+                    onClick = onGeneratePass,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Success,
+                        contentColor = OnSuccess
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Generate Digital Pass")
+                }
+            }
         }
     }
 }
 
-@Composable
-private fun ActionButton(
-    icon: ImageVector,
-    text: String,
-    containerColor: Color,
-    contentColor: Color,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-// Dialog Composables
+// Missing DeleteVisitorDialog function
 @Composable
 private fun DeleteVisitorDialog(
     visitorName: String,
@@ -666,42 +820,53 @@ private fun DeleteVisitorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = Error
-            )
-        },
+        containerColor = Surface,
         title = {
-            Text(
-                text = "Delete Visitor",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Warning",
+                    tint = Error,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Delete Visitor",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         text = {
             Text(
                 text = "Are you sure you want to delete $visitorName? This action cannot be undone.",
+                color = TextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Error)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Error,
+                    contentColor = OnError
+                )
             ) {
                 Text("Delete")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = TextSecondary)
             }
-        }
+        },
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
+// Missing QRCodeDialog function
 @Composable
 private fun QRCodeDialog(
     visitor: Visitor,
@@ -710,12 +875,24 @@ private fun QRCodeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = Surface,
         title = {
-            Text(
-                text = "Digital Pass",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCode,
+                    contentDescription = "QR Code",
+                    tint = Primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "QR Code",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         text = {
             Column(
@@ -725,53 +902,70 @@ private fun QRCodeDialog(
                 // QR Code placeholder
                 Card(
                     modifier = Modifier.size(200.dp),
-                    colors = CardDefaults.cardColors(containerColor = Surface)
+                    colors = CardDefaults.cardColors(containerColor = Surface),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCode,
-                            contentDescription = "QR Code",
-                            tint = Primary,
-                            modifier = Modifier.size(80.dp)
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = "QR Code",
+                                tint = Primary,
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "QR Code for ${visitor.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
 
-                Text(
-                    text = visitor.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Text(
-                    text = "Valid until: ${visitor.date} ${visitor.time}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
+                visitor.qrCodeUrl?.let { url ->
+                    Text(
+                        text = "URL: $url",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Primary,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         },
         confirmButton = {
-            Button(onClick = onShare) {
+            Button(
+                onClick = onShare,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    contentColor = OnPrimary
+                )
+            ) {
                 Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text("Share")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text("Close", color = TextSecondary)
             }
-        }
+        },
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
+// Missing GeneratePassDialog function
 @Composable
 private fun GeneratePassDialog(
     visitor: Visitor,
@@ -781,51 +975,88 @@ private fun GeneratePassDialog(
 ) {
     AlertDialog(
         onDismissRequest = if (isLoading) { {} } else onDismiss,
-        icon = {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = Primary,
-                    strokeWidth = 2.dp
-                )
-            } else {
+        containerColor = Surface,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(
                     imageVector = Icons.Default.QrCode,
-                    contentDescription = null,
-                    tint = Primary
+                    contentDescription = "Generate Pass",
+                    tint = Success,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Generate Digital Pass",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
                 )
             }
         },
-        title = {
-            Text(
-                text = if (isLoading) "Generating Pass..." else "Generate Digital Pass",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
         text = {
-            Text(
-                text = if (isLoading) {
-                    "Please wait while we generate the digital pass for ${visitor.name}."
-                } else {
-                    "Generate a QR code pass for ${visitor.name}? This will allow them to use the digital pass for entry."
-                },
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Generate a digital pass for ${visitor.name}?",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Text(
+                    text = "This will create a QR code that the visitor can use for entry.",
+                    color = TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                if (isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Primary
+                        )
+                        Text(
+                            text = "Generating pass...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
         },
         confirmButton = {
-            if (!isLoading) {
-                Button(onClick = onConfirm) {
+            Button(
+                onClick = onConfirm,
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Success,
+                    contentColor = OnSuccess
+                )
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = OnSuccess
+                    )
+                } else {
                     Text("Generate")
                 }
             }
         },
         dismissButton = {
-            if (!isLoading) {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
-                }
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
+                Text("Cancel", color = TextSecondary)
             }
-        }
+        },
+        shape = RoundedCornerShape(16.dp)
     )
 }

@@ -5,6 +5,7 @@ import com.example.permitely.data.network.AuthApiService
 import com.example.permitely.data.storage.TokenStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -164,22 +165,32 @@ class AuthRepository @Inject constructor(
      */
     suspend fun logout(): Flow<AuthResult> = flow {
         try {
+            println("DEBUG: Starting logout process")
             emit(AuthResult.Loading)
 
             // Get refresh token for logout request
-            tokenStorage.getRefreshToken().collect { refreshToken ->
-                if (refreshToken != null) {
+            val refreshToken = tokenStorage.getRefreshToken().first()
+            println("DEBUG: Retrieved refresh token: ${refreshToken?.take(10)}...")
+
+            if (refreshToken != null) {
+                try {
                     val response = authApiService.logout(LogoutRequest(refreshToken))
-                    // Clear tokens regardless of API response
-                    tokenStorage.clearAll()
-                    emit(AuthResult.Success("Logged out successfully"))
-                } else {
-                    // No token to logout with, just clear local storage
-                    tokenStorage.clearAll()
-                    emit(AuthResult.Success("Logged out successfully"))
+                    println("DEBUG: Logout API response: ${response.code()}")
+                } catch (e: Exception) {
+                    println("DEBUG: Logout API failed: ${e.message}")
+                    // Continue with local cleanup even if API fails
                 }
             }
+
+            // Always clear local tokens regardless of API response
+            // This ensures the user is logged out locally
+            println("DEBUG: Clearing all tokens from storage")
+            tokenStorage.clearAll()
+            println("DEBUG: Logout completed successfully")
+            emit(AuthResult.Success("Logged out successfully"))
+
         } catch (e: Exception) {
+            println("DEBUG: Logout exception: ${e.message}")
             // Even if logout API fails, clear local tokens
             tokenStorage.clearAll()
             emit(AuthResult.Success("Logged out successfully"))

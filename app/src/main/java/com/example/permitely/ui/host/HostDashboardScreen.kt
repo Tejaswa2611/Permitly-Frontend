@@ -20,6 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.permitely.data.models.DashboardStatsUiState
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -34,17 +37,24 @@ fun HostDashboardScreen(
     onViewAllVisitors: () -> Unit = {},
     onViewNotifications: () -> Unit = {},
     onViewProfile: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    viewModel: HostDashboardViewModel = hiltViewModel()
 ) {
-    var isRefreshing by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    // Simulate refresh function
+    // Handle refresh function
     fun refresh() {
-        scope.launch {
-            isRefreshing = true
-            delay(2000) // Simulate network call
-            isRefreshing = false
+        viewModel.refresh()
+    }
+
+    // Show error snackbar if there's an error
+    if (uiState.error != null) {
+        LaunchedEffect(uiState.error) {
+            // You can show a snackbar here or handle error display
+            // For now, we'll just clear the error after showing it
+            kotlinx.coroutines.delay(3000)
+            viewModel.clearError()
         }
     }
 
@@ -59,9 +69,9 @@ fun HostDashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Refresh button (temporary replacement for pull-to-refresh)
+            // Refresh button
             item {
-                if (isRefreshing) {
+                if (uiState.isLoading) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Surface)
@@ -80,7 +90,7 @@ fun HostDashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Refreshing...",
+                                text = "Loading dashboard...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary
                             )
@@ -106,18 +116,47 @@ fun HostDashboardScreen(
                 }
             }
 
+            // Error display
+            if (uiState.error != null) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = uiState.error ?: "Unknown error",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
+
             // Welcome Header
             item {
                 WelcomeHeader(
-                    hostName = "John Smith",
+                    hostName = uiState.userName,
                     onViewProfile = onViewProfile,
                     onLogout = onLogout
                 )
             }
 
-            // Stats Cards
+            // Stats Cards with real data
             item {
-                StatsSection()
+                StatsSection(uiState = uiState)
             }
 
             // Quick Actions
@@ -227,7 +266,7 @@ private fun WelcomeHeader(
 }
 
 @Composable
-private fun StatsSection() {
+private fun StatsSection(uiState: DashboardStatsUiState) {
     Column {
         Text(
             text = "Quick Stats",
@@ -243,14 +282,14 @@ private fun StatsSection() {
         ) {
             StatsCard(
                 title = "Total Visitors",
-                value = "1,234",
+                value = uiState.totalVisitors.toString(),
                 icon = Icons.Default.Group,
                 color = Primary,
                 modifier = Modifier.weight(1f)
             )
             StatsCard(
                 title = "Pending Requests",
-                value = "8",
+                value = uiState.pending.toString(),
                 icon = Icons.Default.Schedule,
                 color = Warning,
                 modifier = Modifier.weight(1f)
@@ -264,17 +303,17 @@ private fun StatsSection() {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatsCard(
-                title = "Active Today",
-                value = "23",
-                icon = Icons.Default.TrendingUp,
+                title = "Approved",
+                value = uiState.approved.toString(),
+                icon = Icons.Default.CheckCircle,
                 color = Success,
                 modifier = Modifier.weight(1f)
             )
             StatsCard(
-                title = "Notifications",
-                value = "5",
-                icon = Icons.Default.Notifications,
-                color = Info,
+                title = "Rejected",
+                value = uiState.rejected.toString(),
+                icon = Icons.Default.Cancel,
+                color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.weight(1f)
             )
         }

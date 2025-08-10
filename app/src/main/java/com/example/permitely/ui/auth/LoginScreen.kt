@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,8 +58,9 @@ fun LoginScreen(
     // Navigate to main app on successful login
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
+            println("DEBUG: LoginScreen detected success, calling onLoginSuccess")
             onLoginSuccess()
-            viewModel.resetState()
+            // Don't reset state here - let MainActivity handle it to avoid race conditions
         }
     }
 
@@ -146,11 +148,47 @@ fun LoginScreen(
                 text = "Sign In",
                 onClick = {
                     viewModel.clearError()
-                    viewModel.login(email, password)
+                    // Check for demo credentials first
+                    if ((email == "test@test.com" && password == "Test@1234") ||
+                        (email == "demo@permitely.com" && password == "Demo@123")) {
+                        // Demo login - bypass backend
+                        onLoginSuccess()
+                    } else {
+                        // Regular login with backend
+                        viewModel.login(email, password)
+                    }
                 },
                 loading = uiState.isLoading,
                 enabled = email.isNotBlank() && password.isNotBlank()
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Minimalist Guest Login Button
+            OutlinedButton(
+                onClick = { onLoginSuccess() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Success
+                ),
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(Success, Success.copy(alpha = 0.8f))
+                    )
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Login,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Continue as Guest",
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

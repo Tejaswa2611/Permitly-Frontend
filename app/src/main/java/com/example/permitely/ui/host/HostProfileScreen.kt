@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyTextField
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
@@ -31,28 +33,22 @@ import kotlinx.coroutines.launch
 @Composable
 fun HostProfileScreen(
     onNavigateBack: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    viewModel: HostProfileViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Profile state
-    var isEditing by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Form fields
-    var name by remember { mutableStateOf("John Doe") }
-    var email by remember { mutableStateOf("john.doe@company.com") }
-    var phone by remember { mutableStateOf("+1 (555) 123-4567") }
-
-    // Save profile function
-    fun saveProfile() {
-        scope.launch {
-            isSaving = true
-            delay(1500) // Simulate API call
-            isSaving = false
-            isEditing = false
+    // Handle error display
+    if (uiState.error != null) {
+        LaunchedEffect(uiState.error) {
+            // Auto-clear error after 3 seconds
+            kotlinx.coroutines.delay(3000)
+            viewModel.clearError()
         }
     }
 
@@ -69,11 +65,11 @@ fun HostProfileScreen(
             // Top App Bar
             ProfileTopBar(
                 onNavigateBack = onNavigateBack,
-                isEditing = isEditing,
-                isSaving = isSaving,
-                onEdit = { isEditing = true },
-                onSave = { saveProfile() },
-                onCancel = { isEditing = false }
+                isEditing = uiState.isEditing,
+                isSaving = uiState.isSaving,
+                onEdit = { viewModel.startEditing() },
+                onSave = { viewModel.saveProfile() },
+                onCancel = { viewModel.cancelEditing() }
             )
 
             // Content
@@ -83,29 +79,82 @@ fun HostProfileScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Error display
+                if (uiState.error != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = uiState.error ?: "Unknown error",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                // Loading indicator
+                if (uiState.isLoading) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Surface)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Primary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Loading profile...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+
                 // Profile Photo and Basic Info
                 ProfilePhotoCard(
-                    name = name,
-                    email = email,
-                    isEditing = isEditing
+                    name = uiState.name,
+                    email = uiState.email,
+                    role = uiState.role,
+                    visitorsCount = uiState.visitorsCount,
+                    passesCount = uiState.passesCount,
+                    isEditing = uiState.isEditing
                 )
 
                 // Editable Profile Information
                 EditableProfileCard(
-                    name = name,
-                    email = email,
-                    phone = phone,
-                    isEditing = isEditing,
-                    onNameChange = { name = it },
-                    onEmailChange = { email = it },
-                    onPhoneChange = { phone = it }
+                    name = uiState.name,
+                    email = uiState.email,
+                    phone = uiState.phoneNumber,
+                    createdAt = uiState.createdAt,
+                    isEditing = uiState.isEditing,
+                    onNameChange = { viewModel.updateName(it) },
+                    onEmailChange = { viewModel.updateEmail(it) },
+                    onPhoneChange = { viewModel.updatePhoneNumber(it) }
                 )
-
-                // Account Statistics
-                AccountStatisticsCard()
-
-                // Settings Options
-                SettingsOptionsCard()
 
                 // Logout Section
                 LogoutCard(
@@ -212,6 +261,9 @@ private fun ProfileTopBar(
 private fun ProfilePhotoCard(
     name: String,
     email: String,
+    role: String,
+    visitorsCount: Int,
+    passesCount: Int,
     isEditing: Boolean
 ) {
     Card(
@@ -295,11 +347,80 @@ private fun ProfilePhotoCard(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Text(
-                    text = "HOST",
+                    text = role.uppercase(),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.titleSmall,
                     color = Primary,
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Visitors and Passes count
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CountCard(
+                    label = "Visitors",
+                    count = visitorsCount,
+                    isEditing = isEditing,
+                    modifier = Modifier.weight(1f)
+                )
+
+                CountCard(
+                    label = "Passes",
+                    count = passesCount,
+                    isEditing = isEditing,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CountCard(
+    label: String,
+    count: Int,
+    isEditing: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Editable field for count when editing
+            if (isEditing) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                PermitelyTextField(
+                    value = count.toString(),
+                    onValueChange = { /* TODO: Handle count change */ },
+                    label = "Edit $label",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -311,6 +432,7 @@ private fun EditableProfileCard(
     name: String,
     email: String,
     phone: String,
+    createdAt: String,
     isEditing: Boolean,
     onNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
@@ -376,6 +498,12 @@ private fun EditableProfileCard(
                     label = "Phone Number",
                     value = phone
                 )
+
+                ProfileInfoRow(
+                    icon = Icons.Default.DateRange,
+                    label = "Member Since",
+                    value = createdAt
+                )
             }
         }
     }
@@ -414,215 +542,7 @@ private fun ProfileInfoRow(
     }
 }
 
-@Composable
-private fun AccountStatisticsCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Account Statistics",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-                fontWeight = FontWeight.SemiBold
-            )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                StatisticItem(
-                    icon = Icons.Default.Group,
-                    label = "Total Visitors",
-                    value = "127",
-                    color = Primary,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatisticItem(
-                    icon = Icons.Default.CheckCircle,
-                    label = "Approved",
-                    value = "98",
-                    color = Success,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                StatisticItem(
-                    icon = Icons.Default.Schedule,
-                    label = "Pending",
-                    value = "15",
-                    color = Secondary,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatisticItem(
-                    icon = Icons.Default.QrCode,
-                    label = "Active Passes",
-                    value = "23",
-                    color = Primary,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatisticItem(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsOptionsCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsItem(
-                icon = Icons.Default.Notifications,
-                title = "Notifications",
-                subtitle = "Manage notification preferences",
-                onClick = { /* TODO: Navigate to notification settings */ }
-            )
-
-            SettingsItem(
-                icon = Icons.Default.Security,
-                title = "Security",
-                subtitle = "Change password and security settings",
-                onClick = { /* TODO: Navigate to security settings */ }
-            )
-
-            SettingsItem(
-                icon = Icons.Default.Language,
-                title = "Language",
-                subtitle = "English (US)",
-                onClick = { /* TODO: Navigate to language settings */ }
-            )
-
-            SettingsItem(
-                icon = Icons.Default.HelpOutline,
-                title = "Help & Support",
-                subtitle = "Get help and contact support",
-                onClick = { /* TODO: Navigate to help */ }
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Secondary,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
 
 @Composable
 private fun LogoutCard(
@@ -683,7 +603,7 @@ private fun LogoutConfirmationDialog(
         },
         text = {
             Text(
-                text = "Are you sure you want to logout? You'll need to sign in again to access your account.",
+                text = "Are you sure you want to logout? You\'ll need to sign in again to access your account.",
                 style = MaterialTheme.typography.bodyMedium
             )
         },

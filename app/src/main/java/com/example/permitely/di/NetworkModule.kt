@@ -2,6 +2,9 @@ package com.example.permitely.di
 
 import android.content.Context
 import com.example.permitely.data.network.AuthApiService
+import com.example.permitely.data.network.DashboardApiService
+import com.example.permitely.data.network.ProfileApiService
+import com.example.permitely.data.network.VisitorApiService
 import com.example.permitely.data.storage.TokenStorage
 import dagger.Module
 import dagger.Provides
@@ -69,5 +72,32 @@ object NetworkModule {
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
         return retrofit.create(AuthApiService::class.java)
+    }
+
+    /**
+     * Provides DashboardApiService for dashboard endpoints
+     */
+    @Provides
+    @Singleton
+    fun provideDashboardApiService(retrofit: Retrofit): DashboardApiService {
+        return retrofit.create(DashboardApiService::class.java)
+    }
+
+    /**
+     * Provides ProfileApiService for profile endpoints
+     */
+    @Provides
+    @Singleton
+    fun provideProfileApiService(retrofit: Retrofit): ProfileApiService {
+        return retrofit.create(ProfileApiService::class.java)
+    }
+
+    /**
+     * Provides VisitorApiService for visitor endpoints
+     */
+    @Provides
+    @Singleton
+    fun provideVisitorApiService(retrofit: Retrofit): VisitorApiService {
+        return retrofit.create(VisitorApiService::class.java)
     }
 }
