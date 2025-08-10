@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.permitely.data.storage.TokenStorage
 import com.example.permitely.ui.host.*
+import com.example.permitely.ui.guard.GuardDashboardScreen
 
 /**
  * Main navigation controller for the authenticated part of the app
@@ -62,22 +63,19 @@ fun MainNavigation(
                     )
                 }
                 "guard" -> {
-                    // TODO: Implement guard dashboard when available
-                    // For now, show host dashboard
-                    HostDashboardScreen(
+                    GuardDashboardScreen(
+                        onScanPass = {
+                            navController.navigate("scan_pass")
+                        },
                         onCreateVisitor = {
                             navController.navigate("create_visitor")
-                        },
-                        onViewAllVisitors = {
-                            navController.navigate("visitors_list")
                         },
                         onViewNotifications = {
                             navController.navigate("notifications")
                         },
                         onViewProfile = {
                             navController.navigate("profile")
-                        },
-                        onLogout = onLogout
+                        }
                     )
                 }
             }
@@ -161,6 +159,32 @@ fun MainNavigation(
                 },
                 onLogout = onLogout
             )
+        }
+
+        // Scan Pass screen (Guard only)
+        composable("scan_pass") {
+            com.example.permitely.ui.guard.ScanPassScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onEnterManually = {
+                    navController.navigate("manual_pass_entry")
+                },
+                onPassScanned = { passId ->
+                    // TODO: Navigate to pass verification result screen
+                    // For now, just go back to dashboard
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Manual Pass Entry screen (Guard only)
+        composable("manual_pass_entry") {
+            // TODO: Implement manual pass entry screen
+            // For now, just go back
+            LaunchedEffect(Unit) {
+                navController.popBackStack()
+            }
         }
     }
 }

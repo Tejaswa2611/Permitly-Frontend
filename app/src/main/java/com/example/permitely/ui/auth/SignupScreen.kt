@@ -54,9 +54,9 @@ fun SignupScreen(
 
     // User type options for dropdown
     val userTypes = listOf(
-        "admin" to "Administrator",
-        "host" to "Host",
-        "guard" to "Security Guard"
+        "ADMIN" to "Administrator",
+        "HOST" to "Host",
+        "GUARD" to "Security Guard"
     )
 
     // Password validation logic
