@@ -97,20 +97,45 @@ fun SplashScreen(
         label = "shimmer_intensity"
     )
 
-    // Main content animations with improved timing
+    // Main content animations with ultra-smooth easing
     val logoVisibility by animateFloatAsState(
         targetValue = if (currentPhase >= SplashPhase.LOGO_ENTER) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = 0.001f
         ),
         label = "logo_visibility"
     )
 
+    val logoTranslationY by animateFloatAsState(
+        targetValue = if (currentPhase >= SplashPhase.LOGO_ENTER) 0f else 100f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = 0.1f
+        ),
+        label = "logo_translation"
+    )
+
     val contentAlpha by animateFloatAsState(
         targetValue = if (currentPhase >= SplashPhase.CONTENT_ENTER) 1f else 0f,
-        animationSpec = tween(1200, easing = FastOutSlowInEasing),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = 0.001f
+        ),
         label = "content_alpha"
+    )
+
+    val contentTranslationY by animateFloatAsState(
+        targetValue = if (currentPhase >= SplashPhase.CONTENT_ENTER) 0f else 50f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = 0.1f
+        ),
+        label = "content_translation"
     )
 
     val loadingAlpha by animateFloatAsState(
@@ -182,7 +207,8 @@ fun SplashScreen(
             Box(
                 modifier = Modifier
                     .scale(logoScale * logoVisibility)
-                    .alpha(logoVisibility),
+                    .alpha(logoVisibility)
+                    .offset(y = logoTranslationY.dp),
                 contentAlignment = Alignment.Center
             ) {
                 // Outermost glow ring
@@ -306,12 +332,10 @@ fun SplashScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        // Enhanced logo icon with visitor management theme
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = "Permitly Logo",
-                            tint = OnPrimary,
-                            modifier = Modifier.size(55.dp)
+                        // Custom Permitly brand logo
+                        CustomPermitlyLogo(
+                            modifier = Modifier.size(60.dp),
+                            tint = OnPrimary
                         )
                     }
                 }
@@ -345,16 +369,13 @@ fun SplashScreen(
             // Enhanced app name with premium typography
             AnimatedVisibility(
                 visible = currentPhase >= SplashPhase.CONTENT_ENTER,
-                enter = slideInVertically(
-                    initialOffsetY = { it / 2 },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
-                ) + fadeIn(animationSpec = tween(1000))
+                enter = fadeIn(animationSpec = tween(800, easing = FastOutSlowInEasing))
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .alpha(contentAlpha)
+                        .offset(y = contentTranslationY.dp)
                 ) {
                     // Main brand name with enhanced styling
                     Text(
@@ -783,6 +804,155 @@ private fun EnhancedFloatingBrandElements(currentPhase: SplashPhase) {
                 .offset(x = 70.dp, y = (-200).dp + float1.dp * 0.7f)
                 .rotate(float1 * -2f)
                 .blur(1.8.dp)
+        )
+    }
+}
+
+@Composable
+private fun CustomPermitlyLogo(
+    modifier: Modifier = Modifier,
+    tint: Color = Color.White
+) {
+    Canvas(modifier = modifier) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+        val center = Offset(canvasWidth / 2f, canvasHeight / 2f)
+        val radius = minOf(canvasWidth, canvasHeight) / 2f * 0.85f
+
+        // Modern visitor management logo design
+        // Outer security ring
+        drawCircle(
+            color = tint.copy(alpha = 0.8f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = radius * 0.08f)
+        )
+
+        // Inner badge shape - hexagon for security/authority feel
+        val hexagonPath = androidx.compose.ui.graphics.Path()
+        val hexRadius = radius * 0.75f
+        for (i in 0..5) {
+            val angle = (i * 60f - 90f) * PI / 180f
+            val x = center.x + hexRadius * cos(angle).toFloat()
+            val y = center.y + hexRadius * sin(angle).toFloat()
+            if (i == 0) hexagonPath.moveTo(x, y) else hexagonPath.lineTo(x, y)
+        }
+        hexagonPath.close()
+
+        // Fill hexagon with gradient effect
+        drawPath(
+            path = hexagonPath,
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tint.copy(alpha = 0.9f),
+                    tint.copy(alpha = 0.7f)
+                ),
+                center = center,
+                radius = hexRadius
+            )
+        )
+
+        // Central "P" for Permitly
+        val strokeWidth = radius * 0.12f
+        val letterHeight = radius * 0.8f
+        val letterWidth = radius * 0.5f
+
+        // P - vertical line
+        drawLine(
+            color = tint.copy(alpha = 0.2f),
+            start = Offset(center.x - letterWidth/3, center.y - letterHeight/2),
+            end = Offset(center.x - letterWidth/3, center.y + letterHeight/2),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+
+        // P - top horizontal line
+        drawLine(
+            color = tint.copy(alpha = 0.2f),
+            start = Offset(center.x - letterWidth/3, center.y - letterHeight/2),
+            end = Offset(center.x + letterWidth/4, center.y - letterHeight/2),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+
+        // P - middle horizontal line
+        drawLine(
+            color = tint.copy(alpha = 0.2f),
+            start = Offset(center.x - letterWidth/3, center.y - letterHeight/6),
+            end = Offset(center.x + letterWidth/6, center.y - letterHeight/6),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+
+        // P - curved section (top right)
+        val arcRect = androidx.compose.ui.geometry.Rect(
+            center.x - letterWidth/6,
+            center.y - letterHeight/2,
+            center.x + letterWidth/2,
+            center.y - letterHeight/6
+        )
+
+        drawArc(
+            color = tint.copy(alpha = 0.2f),
+            startAngle = -90f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = arcRect.topLeft,
+            size = arcRect.size,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+
+        // Access control dots pattern (modern touch)
+        val dotRadius = radius * 0.04f
+        val dotPositions = listOf(
+            Offset(center.x + radius * 0.3f, center.y - radius * 0.2f),
+            Offset(center.x + radius * 0.4f, center.y),
+            Offset(center.x + radius * 0.3f, center.y + radius * 0.2f),
+        )
+
+        dotPositions.forEach { dotPos ->
+            drawCircle(
+                color = tint.copy(alpha = 0.3f),
+                radius = dotRadius,
+                center = dotPos
+            )
+        }
+
+        // Subtle corner accent marks (security/scanning theme)
+        val accentLength = radius * 0.15f
+        val accentStroke = radius * 0.02f
+        val cornerOffset = radius * 0.6f
+
+        // Top-left accent
+        drawLine(
+            color = tint.copy(alpha = 0.4f),
+            start = Offset(center.x - cornerOffset, center.y - cornerOffset),
+            end = Offset(center.x - cornerOffset + accentLength, center.y - cornerOffset),
+            strokeWidth = accentStroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint.copy(alpha = 0.4f),
+            start = Offset(center.x - cornerOffset, center.y - cornerOffset),
+            end = Offset(center.x - cornerOffset, center.y - cornerOffset + accentLength),
+            strokeWidth = accentStroke,
+            cap = StrokeCap.Round
+        )
+
+        // Bottom-right accent
+        drawLine(
+            color = tint.copy(alpha = 0.4f),
+            start = Offset(center.x + cornerOffset, center.y + cornerOffset),
+            end = Offset(center.x + cornerOffset - accentLength, center.y + cornerOffset),
+            strokeWidth = accentStroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint.copy(alpha = 0.4f),
+            start = Offset(center.x + cornerOffset, center.y + cornerOffset),
+            end = Offset(center.x + cornerOffset, center.y + cornerOffset - accentLength),
+            strokeWidth = accentStroke,
+            cap = StrokeCap.Round
         )
     }
 }
