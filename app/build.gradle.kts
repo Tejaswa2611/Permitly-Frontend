@@ -18,17 +18,31 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Default base URL (can be overridden by build variants)
+        buildConfigField("String", "BASE_URL", "\"https://permitly-production.up.railway.app/\"")
     }
 
     buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // Development/Staging URL
+            buildConfigField("String", "BASE_URL", "\"https://permitly-staging.up.railway.app/\"")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Production URL
+            buildConfigField("String", "BASE_URL", "\"https://permitly-production.up.railway.app/\"")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -38,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // Enable BuildConfig generation
     }
 }
 

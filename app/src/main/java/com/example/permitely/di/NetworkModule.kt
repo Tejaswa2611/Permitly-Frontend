@@ -3,6 +3,7 @@ package com.example.permitely.di
 import android.content.Context
 import com.example.permitely.data.network.AuthApiService
 import com.example.permitely.data.network.DashboardApiService
+import com.example.permitely.data.network.GuardApiService
 import com.example.permitely.data.network.ProfileApiService
 import com.example.permitely.data.network.VisitorApiService
 import com.example.permitely.data.storage.TokenStorage
@@ -59,7 +60,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:5500/") // Changed to emulator localhost
+            .baseUrl("https://permitly-production.up.railway.app/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -99,5 +100,23 @@ object NetworkModule {
     @Singleton
     fun provideVisitorApiService(retrofit: Retrofit): VisitorApiService {
         return retrofit.create(VisitorApiService::class.java)
+    }
+
+    /**
+     * Provides GuardApiService for guard endpoints
+     */
+    @Provides
+    @Singleton
+    fun provideGuardApiService(retrofit: Retrofit): GuardApiService {
+        return retrofit.create(GuardApiService::class.java)
+    }
+
+    /**
+     * Provides TokenStorage for secure token management
+     */
+    @Provides
+    @Singleton
+    fun provideTokenStorage(@ApplicationContext context: Context): TokenStorage {
+        return TokenStorage(context)
     }
 }
