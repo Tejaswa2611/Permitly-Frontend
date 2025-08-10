@@ -1,5 +1,6 @@
 package com.example.permitely.ui.host
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -19,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyButton
 import com.example.permitely.ui.common.PermitelyTextField
+import com.example.permitely.ui.common.PermitelyAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,15 +92,28 @@ fun CreateVisitorScreen(
         }
     }
 
-    // Handle errors from API
+    // Get context for showing toast messages
+    val context = LocalContext.current
+
+    // Handle errors from API - Show toast messages for API errors
     LaunchedEffect(uiState.error) {
         if (uiState.error != null) {
-            // Clear previous field errors and show API error
+            // Show API error as toast message on screen
+            Toast.makeText(
+                context,
+                "Error: ${uiState.error}",
+                Toast.LENGTH_LONG
+            ).show()
+
+            // Clear previous field errors since this is an API error
             nameError = ""
             emailError = ""
             phoneError = ""
             purposeError = ""
             dateTimeError = ""
+
+            // Clear the error from ViewModel after showing toast
+            viewModel.clearError()
         }
     }
 
@@ -168,26 +184,30 @@ fun CreateVisitorScreen(
                     selectedTime = selectedTime
                 )
             }
+        } else {
+            // Show error messages on the screen using Toast
+            Toast.makeText(context, "Please fix the errors in the form", Toast.LENGTH_SHORT).show()
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
+    Scaffold(
+        topBar = {
+            PermitelyAppBar(
+                title = "Create New Visitor",
+                onNavigationClick = onNavigateBack
+            )
+        }
+    ) { paddingValues ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .background(Background)
+                .padding(paddingValues)
         ) {
-            // Top App Bar
-            CreateVisitorTopBar(onNavigateBack = onNavigateBack)
-
-            // Form Content
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {

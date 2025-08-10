@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.permitely.ui.common.PermitelyTextField
+import com.example.permitely.ui.common.PermitelySearchAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.launch
 

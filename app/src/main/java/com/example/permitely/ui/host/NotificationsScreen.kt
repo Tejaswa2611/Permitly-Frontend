@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.permitely.ui.common.PermitelyAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

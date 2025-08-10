@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyTextField
+import com.example.permitely.ui.common.PermitelyAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,30 +53,60 @@ fun HostProfileScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
+    Scaffold(
+        topBar = {
+            PermitelyAppBar(
+                title = "My Profile",
+                onNavigationClick = onNavigateBack,
+                actions = {
+                    if (uiState.isEditing) {
+                        TextButton(
+                            onClick = { viewModel.cancelEditing() },
+                            enabled = !uiState.isSaving
+                        ) {
+                            Text("Cancel", color = TextSecondary)
+                        }
+
+                        Button(
+                            onClick = { viewModel.saveProfile() },
+                            enabled = !uiState.isSaving,
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                        ) {
+                            if (uiState.isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = OnPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Saving...")
+                            } else {
+                                Text("Save")
+                            }
+                        }
+                    } else {
+                        IconButton(onClick = { viewModel.startEditing() }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile",
+                                tint = Primary
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .background(Background)
+                .padding(paddingValues)
         ) {
-            // Top App Bar
-            ProfileTopBar(
-                onNavigateBack = onNavigateBack,
-                isEditing = uiState.isEditing,
-                isSaving = uiState.isSaving,
-                onEdit = { viewModel.startEditing() },
-                onSave = { viewModel.saveProfile() },
-                onCancel = { viewModel.cancelEditing() }
-            )
-
-            // Content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {

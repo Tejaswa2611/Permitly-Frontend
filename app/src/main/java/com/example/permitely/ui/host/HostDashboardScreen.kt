@@ -18,11 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.data.models.DashboardStatsUiState
+import com.example.permitely.ui.common.PermitelyProfileAppBar
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,6 +43,7 @@ fun HostDashboardScreen(
     viewModel: HostDashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val scope = rememberCoroutineScope()
 
     // Handle refresh function
@@ -58,147 +61,164 @@ fun HostDashboardScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Refresh button
-            item {
-                if (uiState.isLoading) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Surface)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Primary,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Loading dashboard...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
-                            )
+    Scaffold(
+        topBar = {
+            PermitelyProfileAppBar(
+                title = "Dashboard",
+                subtitle = "Manage your visitors and access",
+                userName = uiState.userName,
+                userRole = "Host",
+                onProfileClick = onViewProfile,
+                onNotificationClick = onViewNotifications,
+                notificationCount = 3, // You can make this dynamic based on actual notifications
+                scrollBehavior = scrollBehavior
+            )
+        },
+        content = { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Background)
+                    .padding(paddingValues)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Refresh button
+                    item {
+                        if (uiState.isLoading) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Surface)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Primary,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Loading dashboard...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = { refresh() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Primary.copy(alpha = 0.1f),
+                                    contentColor = Primary
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Refresh Dashboard")
+                            }
                         }
                     }
-                } else {
-                    Button(
-                        onClick = { refresh() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Primary.copy(alpha = 0.1f),
-                            contentColor = Primary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Refresh Dashboard")
-                    }
-                }
-            }
 
-            // Error display
-            if (uiState.error != null) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Error,
-                                contentDescription = "Error",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = uiState.error ?: "Unknown error",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                    // Error display
+                    if (uiState.error != null) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Error,
+                                        contentDescription = "Error",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = uiState.error ?: "Unknown error",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
                         }
                     }
+
+                    // Welcome Header
+                    item {
+                        WelcomeHeader(
+                            hostName = uiState.userName,
+                            onViewProfile = onViewProfile,
+                            onLogout = onLogout
+                        )
+                    }
+
+                    // Stats Cards with real data
+                    item {
+                        StatsSection(uiState = uiState)
+                    }
+
+                    // Quick Actions
+                    item {
+                        QuickActionsSection(
+                            onCreateVisitor = onCreateVisitor,
+                            onViewAllVisitors = onViewAllVisitors,
+                            onViewNotifications = onViewNotifications
+                        )
+                    }
+
+                    // Recent Visitors
+                    item {
+                        RecentVisitorsSection()
+                    }
+
+                    // Bottom spacing for FAB
+                    item {
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
+
+                // Floating Action Button
+                FloatingActionButton(
+                    onClick = onCreateVisitor,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    containerColor = Primary,
+                    contentColor = OnPrimary,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 8.dp,
+                        pressedElevation = 12.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Create New Visitor",
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
-
-            // Welcome Header
-            item {
-                WelcomeHeader(
-                    hostName = uiState.userName,
-                    onViewProfile = onViewProfile,
-                    onLogout = onLogout
-                )
-            }
-
-            // Stats Cards with real data
-            item {
-                StatsSection(uiState = uiState)
-            }
-
-            // Quick Actions
-            item {
-                QuickActionsSection(
-                    onCreateVisitor = onCreateVisitor,
-                    onViewAllVisitors = onViewAllVisitors,
-                    onViewNotifications = onViewNotifications
-                )
-            }
-
-            // Recent Visitors
-            item {
-                RecentVisitorsSection()
-            }
-
-            // Bottom spacing for FAB
-            item {
-                Spacer(modifier = Modifier.height(80.dp))
-            }
         }
-
-        // Floating Action Button
-        FloatingActionButton(
-            onClick = onCreateVisitor,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            containerColor = Primary,
-            contentColor = OnPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 12.dp
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Create New Visitor",
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
+    )
 }
 
 @Composable

@@ -53,28 +53,49 @@ class VisitorRepository @Inject constructor(
                     emit(Result.failure(Exception(errorMessage)))
                 }
             } else {
-                // Handle HTTP error responses
+                // Handle HTTP error responses - Parse JSON error response from backend
                 val errorBody = response.errorBody()?.string()
                 println("DEBUG: Create visitor HTTP error ${response.code()}: $errorBody")
 
-                val errorMessage = when (response.code()) {
-                    400 -> {
-                        // Parse specific validation errors from backend
-                        when {
-                            errorBody?.contains("email") == true -> "Invalid email format"
-                            errorBody?.contains("phone") == true -> "Invalid phone number format"
-                            errorBody?.contains("name") == true -> "Invalid visitor name"
-                            errorBody?.contains("purpose") == true -> "Purpose of visit is required"
-                            errorBody?.contains("expiry_time") == true -> "Invalid expiry time format"
-                            else -> "Invalid visitor information provided"
+                // Try to parse the JSON error response from backend
+                val errorMessage = try {
+                    if (errorBody != null) {
+                        // Parse the JSON error response: {"status": "error", "message": "error message"}
+                        val gson = com.google.gson.Gson()
+                        val errorResponse = gson.fromJson(errorBody, com.google.gson.JsonObject::class.java)
+
+                        // Extract the message field from the error response
+                        val backendMessage = errorResponse.get("message")?.asString
+
+                        if (!backendMessage.isNullOrEmpty()) {
+                            backendMessage // Use the exact error message from backend
+                        } else {
+                            // Fallback to HTTP status code based messages
+                            when (response.code()) {
+                                400 -> "Invalid visitor information provided"
+                                409 -> "This visitor already has an active or pending visit"
+                                401 -> "Authentication failed. Please login again"
+                                403 -> "You don't have permission to create visitors"
+                                500 -> "Server error. Please try again later"
+                                else -> "Failed to create visitor. Please try again"
+                            }
                         }
+                    } else {
+                        "Failed to create visitor. Please try again"
                     }
-                    409 -> "This visitor already has an active or pending visit. Cannot create multiple active visits."
-                    401 -> "Authentication failed. Please login again."
-                    403 -> "You don't have permission to create visitors"
-                    500 -> "Server error. Please try again later"
-                    else -> "Failed to create visitor. Please try again"
+                } catch (jsonException: Exception) {
+                    println("DEBUG: Failed to parse JSON error response: ${jsonException.message}")
+                    // Fallback to HTTP status code based messages if JSON parsing fails
+                    when (response.code()) {
+                        400 -> "Invalid visitor information provided"
+                        409 -> "This visitor already has an active or pending visit"
+                        401 -> "Authentication failed. Please login again"
+                        403 -> "You don't have permission to create visitors"
+                        500 -> "Server error. Please try again later"
+                        else -> "Failed to create visitor. Please try again"
+                    }
                 }
+
                 emit(Result.failure(Exception(errorMessage)))
             }
         } catch (e: Exception) {
