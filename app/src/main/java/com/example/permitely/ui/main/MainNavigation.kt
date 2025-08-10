@@ -91,9 +91,9 @@ fun MainNavigation(
                 },
                 onVisitorCreated = { visitorData ->
                     try {
-                        // Navigate to visitor details with the created visitor data
-                        val visitorJson = createVisitorJson(visitorData)
-                        navController.navigate("visitor_details/$visitorJson")
+                        // Navigate to visitor details using the visitor ID from the created visitor
+                        val visitorId = visitorData.visitor.visitorId.toString()
+                        navController.navigate("visitor_details/$visitorId")
                     } catch (e: Exception) {
                         println("Error processing visitor data: ${e.message}")
                         e.printStackTrace()
@@ -111,40 +111,36 @@ fun MainNavigation(
                     navController.popBackStack()
                 },
                 onVisitorClick = { visitor ->
-                    val visitorJson = createVisitorJsonFromVisitor(visitor)
-                    navController.navigate("visitor_details/$visitorJson")
+                    // Pass only the visitor ID, not the entire visitor data
+                    navController.navigate("visitor_details/${visitor.id}")
                 }
             )
         }
 
-        // Visitor details screen
-        composable("visitor_details/{visitorJson}") { backStackEntry ->
-            val visitorJson = backStackEntry.arguments?.getString("visitorJson")
-            visitorJson?.let { json ->
-                val visitor = parseVisitorFromJson(json)
-                visitor?.let {
-                    VisitorDetailsScreen(
-                        visitor = it,
-                        onNavigateBack = {
-                            navController.popBackStack()
-                        },
-                        onEditVisitor = { visitorToEdit ->
-                            // TODO: Navigate to edit screen when implemented
-                            // val editVisitorJson = createVisitorJsonFromVisitor(visitorToEdit)
-                            // navController.navigate("edit_visitor/$editVisitorJson")
-                        },
-                        onDeleteVisitor = { visitorId ->
-                            // TODO: Implement visitor deletion logic
-                            navController.popBackStack()
-                        },
-                        onGeneratePass = { visitorId ->
-                            // TODO: Implement pass generation logic
-                        },
-                        onShareQRCode = {
-                            // TODO: Implement QR code sharing logic
-                        }
-                    )
-                }
+        // Visitor details screen - now takes visitor ID as parameter
+        composable("visitor_details/{visitorId}") { backStackEntry ->
+            val visitorId = backStackEntry.arguments?.getString("visitorId")
+            visitorId?.let { id ->
+                VisitorDetailsScreen(
+                    visitorId = id,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onEditVisitor = { visitorToEdit ->
+                        // TODO: Navigate to edit screen when implemented
+                        // navController.navigate("edit_visitor/${visitorToEdit.id}")
+                    },
+                    onDeleteVisitor = { visitorId ->
+                        // TODO: Implement visitor deletion logic
+                        navController.popBackStack()
+                    },
+                    onGeneratePass = { visitorId ->
+                        // TODO: Implement pass generation logic
+                    },
+                    onShareQRCode = {
+                        // TODO: Implement QR code sharing logic
+                    }
+                )
             }
         }
 
@@ -173,7 +169,7 @@ fun MainNavigation(
 private fun createVisitorJson(visitorData: com.example.permitely.data.models.CreateVisitorResponseData): String {
     // Create a simplified JSON string for navigation
     val visitor = visitorData.visitor
-    val pass = visitorData.pass
+    val latestPass = visitor.passes.firstOrNull() // Get newest pass from passes array
 
     return buildString {
         append("{")
@@ -186,10 +182,10 @@ private fun createVisitorJson(visitorData: com.example.permitely.data.models.Cre
         append("\"time\":\"${visitor.createdAt.split("T")[1].split("Z")[0]}\",")
         append("\"status\":\"${visitor.status}\",")
         append("\"createdAt\":\"${visitor.createdAt}\",")
-        append("\"hasQRCode\":${pass != null},")
-        append("\"qrCodeUrl\":\"${pass?.qrCodeUrl ?: ""}\",")
-        append("\"passId\":\"${pass?.passId ?: ""}\",")
-        append("\"expiryTime\":\"${pass?.expiryTime ?: ""}\"")
+        append("\"hasQRCode\":${latestPass != null},")
+        append("\"qrCodeUrl\":\"${latestPass?.qrCodeData ?: ""}\",")
+        append("\"passId\":\"${latestPass?.passId ?: ""}\",")
+        append("\"expiryTime\":\"${latestPass?.expiryTime ?: ""}\"")
         append("}")
     }
 }

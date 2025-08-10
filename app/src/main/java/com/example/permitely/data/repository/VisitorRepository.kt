@@ -3,6 +3,7 @@ package com.example.permitely.data.repository
 import com.example.permitely.data.models.CreateVisitorRequest
 import com.example.permitely.data.models.CreateVisitorResponseData
 import com.example.permitely.data.models.VisitorData
+import com.example.permitely.data.models.GetVisitorByIdData
 import com.example.permitely.data.network.VisitorApiService
 import com.example.permitely.data.storage.TokenStorage
 import kotlinx.coroutines.flow.Flow
@@ -201,6 +202,62 @@ class VisitorRepository @Inject constructor(
                 is java.net.SocketTimeoutException -> "Connection timeout"
                 is com.google.gson.JsonSyntaxException -> "Invalid response format from server"
                 is com.google.gson.JsonParseException -> "Failed to parse server response"
+                else -> "Network error: ${e.message ?: "Unknown error"}"
+            }
+            emit(Result.failure(Exception(errorMessage)))
+        }
+    }
+
+    /**
+     * Get visitor details by ID
+     * @param visitorId The ID of the visitor to fetch
+     * @return Flow<Result<GetVisitorByIdData>> - Flow containing visitor details or error
+     */
+    fun getVisitorById(visitorId: String): Flow<Result<GetVisitorByIdData>> = flow {
+        try {
+            val token = tokenStorage.getAccessToken().first()
+            if (token == null || token.isEmpty()) {
+                emit(Result.failure(Exception("No access token available")))
+                return@flow
+            }
+
+            println("DEBUG: Getting visitor details for ID: $visitorId")
+
+            val response = visitorApiService.getVisitorById("Bearer $token", visitorId)
+
+            println("DEBUG: Get visitor by ID API response code: ${response.code()}")
+            println("DEBUG: Get visitor by ID API response successful: ${response.isSuccessful}")
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                println("DEBUG: Get visitor by ID response body: $body")
+
+                if (body?.status == "success" && body.data != null) {
+                    println("DEBUG: Successfully fetched visitor details for ID: $visitorId")
+                    emit(Result.success(body.data))
+                } else {
+                    val errorMessage = body?.message ?: "Failed to fetch visitor details"
+                    println("DEBUG: Get visitor by ID failed: $errorMessage")
+                    emit(Result.failure(Exception(errorMessage)))
+                }
+            } else {
+                val errorMessage = when (response.code()) {
+                    404 -> "Visitor not found"
+                    401 -> "Authentication failed. Please login again"
+                    403 -> "You don't have permission to view this visitor"
+                    500 -> "Server error. Please try again later"
+                    else -> "Failed to fetch visitor details. Please try again"
+                }
+                println("DEBUG: Get visitor by ID HTTP error: $errorMessage")
+                emit(Result.failure(Exception(errorMessage)))
+            }
+        } catch (e: Exception) {
+            println("DEBUG: Get visitor by ID exception: ${e.message}")
+            e.printStackTrace()
+
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
                 else -> "Network error: ${e.message ?: "Unknown error"}"
             }
             emit(Result.failure(Exception(errorMessage)))

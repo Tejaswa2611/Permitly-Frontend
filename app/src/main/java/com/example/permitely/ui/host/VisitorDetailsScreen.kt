@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -29,15 +31,29 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VisitorDetailsScreen(
-    visitor: Visitor,
+    visitorId: String,
     onNavigateBack: () -> Unit = {},
     onEditVisitor: (Visitor) -> Unit = {},
     onDeleteVisitor: (String) -> Unit = {},
     onGeneratePass: (String) -> Unit = {},
-    onShareQRCode: () -> Unit = {}
+    onShareQRCode: () -> Unit = {},
+    viewModel: VisitorDetailsViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+
+    // Observe ViewModel state
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Load visitor details when the screen is first composed
+    LaunchedEffect(visitorId) {
+        viewModel.loadVisitorDetails(visitorId)
+    }
+
+    // Convert API data to UI visitor when available
+    val visitor = uiState.visitorData?.let { visitorData ->
+        viewModel.convertToUiVisitor(visitorData)
+    }
 
     // Dialog states
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -46,102 +62,162 @@ fun VisitorDetailsScreen(
     var isGeneratingPass by remember { mutableStateOf(false) }
 
     // Pass generation state (simulate if visitor has a pass)
-    var hasPass by remember { mutableStateOf(visitor.status == VisitorStatus.APPROVED) }
+    var hasPass by remember(visitor) { mutableStateOf(visitor?.status == VisitorStatus.APPROVED) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-        ) {
-            // Top App Bar
-            VisitorDetailsTopBar(
-                visitorName = visitor.name,
-                onNavigateBack = onNavigateBack
-            )
-
-            // Content
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Visitor Information Card
-                VisitorInfoCard(visitor = visitor)
-
-                // Status Timeline Card
-                StatusTimelineCard(visitor = visitor)
-
-                // QR Code and Pass Card (if approved)
-                if (visitor.status == VisitorStatus.APPROVED) {
-                    QRCodePassCard(
-                        visitor = visitor,
-                        hasPass = hasPass,
-                        onShowQR = { showQRDialog = true },
-                        onGeneratePass = { showGeneratePassDialog = true }
-                    )
-                }
-
-                // Action Buttons
-                ActionButtonsSection(
-                    visitor = visitor,
-                    hasPass = hasPass,
-                    onEdit = { onEditVisitor(visitor) },
-                    onDelete = { showDeleteDialog = true },
-                    onGeneratePass = { showGeneratePassDialog = true },
-                    onShareQR = { showQRDialog = true }
-                )
-            }
+    // Handle error state
+    uiState.errorMessage?.let { errorMessage ->
+        LaunchedEffect(errorMessage) {
+            println("Error loading visitor details: $errorMessage")
+            // You can show a snackbar or alert dialog here
+            viewModel.clearError()
         }
     }
 
-    // Delete Confirmation Dialog
-    if (showDeleteDialog) {
-        DeleteVisitorDialog(
-            visitorName = visitor.name,
-            onConfirm = {
-                onDeleteVisitor(visitor.id)
-                showDeleteDialog = false
-                onNavigateBack()
-            },
-            onDismiss = { showDeleteDialog = false }
-        )
+    // Show loading state
+    if (uiState.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Primary)
+        }
+        return
     }
 
-    // QR Code Dialog
-    if (showQRDialog) {
-        QRCodeDialog(
-            visitor = visitor,
-            onDismiss = { showQRDialog = false },
-            onShare = {
-                onShareQRCode()
-                showQRDialog = false
+    // Show error state if visitor not found
+    if (uiState.errorMessage != null && visitor == null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = "Error",
+                tint = Error,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Failed to load visitor details",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextSecondary
+            )
+            Text(
+                text = uiState.errorMessage ?: "Unknown error",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextTertiary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { viewModel.refreshVisitorDetails(visitorId) },
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            ) {
+                Text("Retry")
             }
-        )
+        }
+        return
     }
 
-    // Generate Pass Dialog
-    if (showGeneratePassDialog) {
-        GeneratePassDialog(
-            visitor = visitor,
-            isLoading = isGeneratingPass,
-            onConfirm = {
-                scope.launch {
-                    isGeneratingPass = true
-                    delay(2000) // Simulate API call
-                    hasPass = true
-                    isGeneratingPass = false
-                    showGeneratePassDialog = false
-                    onGeneratePass(visitor.id)
+    // Show main content when visitor data is available
+    visitor?.let { visitorData ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Background)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+            ) {
+                // Top App Bar
+                VisitorDetailsTopBar(
+                    visitorName = visitorData.name,
+                    onNavigateBack = onNavigateBack
+                )
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Visitor Information Card
+                    VisitorInfoCard(visitor = visitorData)
+
+                    // Status Timeline Card
+                    StatusTimelineCard(visitor = visitorData)
+
+                    // QR Code and Pass Card (if approved)
+                    if (visitorData.status == VisitorStatus.APPROVED) {
+                        QRCodePassCard(
+                            visitor = visitorData,
+                            hasPass = hasPass,
+                            onShowQR = { showQRDialog = true },
+                            onGeneratePass = { showGeneratePassDialog = true }
+                        )
+                    }
+
+                    // Action Buttons
+                    ActionButtonsSection(
+                        visitor = visitorData,
+                        hasPass = hasPass,
+                        onEdit = { onEditVisitor(visitorData) },
+                        onDelete = { showDeleteDialog = true },
+                        onGeneratePass = { showGeneratePassDialog = true },
+                        onShareQR = { showQRDialog = true }
+                    )
                 }
-            },
-            onDismiss = { showGeneratePassDialog = false }
-        )
+            }
+        }
+
+        // Delete Confirmation Dialog
+        if (showDeleteDialog) {
+            DeleteVisitorDialog(
+                visitorName = visitor.name,
+                onConfirm = {
+                    onDeleteVisitor(visitor.id)
+                    showDeleteDialog = false
+                    onNavigateBack()
+                },
+                onDismiss = { showDeleteDialog = false }
+            )
+        }
+
+        // QR Code Dialog
+        if (showQRDialog) {
+            QRCodeDialog(
+                visitor = visitor,
+                onDismiss = { showQRDialog = false },
+                onShare = {
+                    onShareQRCode()
+                    showQRDialog = false
+                }
+            )
+        }
+
+        // Generate Pass Dialog
+        if (showGeneratePassDialog) {
+            GeneratePassDialog(
+                visitor = visitor,
+                isLoading = isGeneratingPass,
+                onConfirm = {
+                    scope.launch {
+                        isGeneratingPass = true
+                        delay(2000) // Simulate API call
+                        hasPass = true
+                        isGeneratingPass = false
+                        showGeneratePassDialog = false
+                        onGeneratePass(visitor.id)
+                    }
+                },
+                onDismiss = { showGeneratePassDialog = false }
+            )
+        }
     }
 }
 

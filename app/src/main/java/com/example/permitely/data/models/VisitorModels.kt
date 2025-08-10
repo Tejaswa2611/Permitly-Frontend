@@ -14,7 +14,7 @@ data class CreateVisitorRequest(
 )
 
 /**
- * Visitor data model from API response
+ * Visitor data model from API response - updated to match actual API structure
  */
 data class VisitorData(
     @SerializedName("visitor_id") val visitorId: Int,
@@ -22,35 +22,22 @@ data class VisitorData(
     @SerializedName("phone_number") val phoneNumber: String,
     val email: String,
     @SerializedName("purpose_of_visit") val purposeOfVisit: String,
-    @SerializedName("host_id") val hostId: Int,
-    val status: String, // PENDING, APPROVED, REJECTED, etc.
+    val status: String, // PENDING, APPROVED, REJECTED, EXPIRED
     @SerializedName("entry_time") val entryTime: String?,
     @SerializedName("exit_time") val exitTime: String?,
     @SerializedName("created_at") val createdAt: String,
-    @SerializedName("updated_at") val updatedAt: String,
-    val host: HostInfo
+    val passes: List<PassData> = emptyList() // Array of passes, newest first
 )
 
 /**
- * Host information in visitor response
- */
-data class HostInfo(
-    val name: String,
-    val email: String,
-    @SerializedName("phone_number") val phoneNumber: String
-)
-
-/**
- * Pass data model from API response
+ * Pass data model from API response - updated structure
  */
 data class PassData(
     @SerializedName("pass_id") val passId: Int,
-    @SerializedName("visitor_id") val visitorId: Int,
-    @SerializedName("qr_code_data") val qrCodeData: String,
-    @SerializedName("qr_code_url") val qrCodeUrl: String,
-    @SerializedName("expiry_time") val expiryTime: String,
     @SerializedName("created_at") val createdAt: String,
-    @SerializedName("updated_at") val updatedAt: String
+    @SerializedName("expiry_time") val expiryTime: String,
+    @SerializedName("approved_at") val approvedAt: String,
+    @SerializedName("qr_code_data") val qrCodeData: String // This is the QR code URL
 )
 
 /**
@@ -86,4 +73,20 @@ data class GetAllVisitorsResponse(
  */
 data class GetAllVisitorsData(
     val visitors: List<VisitorData>
+)
+
+/**
+ * Get visitor by ID API response wrapper
+ */
+data class GetVisitorByIdResponse(
+    val status: String,
+    val data: GetVisitorByIdData? = null,
+    val message: String? = null
+)
+
+/**
+ * Get visitor by ID response data - updated to match API structure
+ */
+data class GetVisitorByIdData(
+    val visitor: VisitorData // Visitor already contains passes array
 )

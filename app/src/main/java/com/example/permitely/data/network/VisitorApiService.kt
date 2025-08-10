@@ -3,6 +3,7 @@ package com.example.permitely.data.network
 import com.example.permitely.data.models.CreateVisitorRequest
 import com.example.permitely.data.models.CreateVisitorResponse
 import com.example.permitely.data.models.GetAllVisitorsResponse
+import com.example.permitely.data.models.GetVisitorByIdResponse
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -32,8 +33,17 @@ interface VisitorApiService {
         @Query("status") status: String? = null
     ): Response<GetAllVisitorsResponse>
 
+    /**
+     * Get visitor details by ID
+     * GET /api/visitors/{id}
+     */
+    @GET("api/visitors/{id}")
+    suspend fun getVisitorById(
+        @Header("Authorization") token: String,
+        @Path("id") visitorId: String
+    ): Response<GetVisitorByIdResponse>
+
     // TODO: Add other visitor endpoints as needed
-    // GET /api/visitors/{id} - Get visitor by ID
     // PUT /api/visitors/{id} - Update visitor
     // DELETE /api/visitors/{id} - Delete visitor
 }
