@@ -3,22 +3,23 @@ package com.example.permitely.ui.guard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.permitely.data.models.DashboardStatsUiState
-import com.example.permitely.data.repository.DashboardRepository
+import com.example.permitely.data.repository.GuardRepository
 import com.example.permitely.data.storage.TokenStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 /**
  * ViewModel for Guard Dashboard Screen
- * Manages guard dashboard statistics and UI state
+ * Manages guard dashboard statistics and UI state with today's stats
  */
 @HiltViewModel
 class GuardDashboardViewModel @Inject constructor(
-    private val dashboardRepository: DashboardRepository,
+    private val guardRepository: GuardRepository,
     private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
@@ -26,6 +27,8 @@ class GuardDashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardStatsUiState> = _uiState.asStateFlow()
 
     init {
+        println("GuardDashboardViewModel: Initializing...")
+        println("GuardDashboardViewModel: Initial UI State - Total: ${_uiState.value.totalVisitors}")
         loadDashboardData()
     }
 
@@ -36,44 +39,49 @@ class GuardDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            // Load user info from storage (Flow-based)
-            tokenStorage.getUserInfo().collect { userInfo ->
-                _uiState.value = _uiState.value.copy(
-                    userName = userInfo?.name ?: "Guard",
-                    userEmail = userInfo?.email ?: "",
-                    userRole = "Guard"
-                )
-            }
+            println("GuardDashboardViewModel: Starting to load dashboard data")
+
+            // Load user info from storage (Flow-based) - but don't collect continuously
+            val userInfo = tokenStorage.getUserInfo().first()
+            _uiState.value = _uiState.value.copy(
+                userName = userInfo?.name ?: "Guard",
+                userEmail = userInfo?.email ?: "",
+                userRole = "Guard"
+            )
+
+            println("GuardDashboardViewModel: User info loaded - ${userInfo?.name}")
         }
 
-        // Load dashboard stats separately
-        loadDashboardStats()
+        // Load today's guard stats
+        loadTodayStats()
     }
 
     /**
-     * Load dashboard statistics from the API
+     * Load today's guard statistics from the API
      */
-    private fun loadDashboardStats() {
+    private fun loadTodayStats() {
         viewModelScope.launch {
             try {
-                dashboardRepository.getDashboardStats().collect { result ->
+                guardRepository.getTodayStats().collect { result ->
                     result.fold(
-                        onSuccess = { stats ->
+                        onSuccess = { todayStats ->
                             _uiState.value = _uiState.value.copy(
-                                totalVisitors = stats.totalVisitors,
-                                approved = stats.approved,
-                                pending = stats.pending,
-                                rejected = stats.rejected,
-                                expired = stats.expired,
+                                totalVisitors = todayStats.totalVisitors,
+                                approved = todayStats.approvedVisitors,
+                                pending = todayStats.pendingVisitors,
+                                rejected = todayStats.rejectedVisitors,
+                                expired = todayStats.expiredVisitors,
                                 isLoading = false,
                                 error = null
                             )
+                            println("GuardDashboardViewModel: Today's stats loaded - Total: ${todayStats.totalVisitors}")
                         },
                         onFailure = { error ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                error = error.message ?: "Failed to load dashboard stats"
+                                error = error.message ?: "Failed to load today's statistics"
                             )
+                            println("GuardDashboardViewModel: Failed to load stats - ${error.message}")
                         }
                     )
                 }
@@ -82,6 +90,7 @@ class GuardDashboardViewModel @Inject constructor(
                     isLoading = false,
                     error = e.message ?: "Failed to load dashboard data"
                 )
+                println("GuardDashboardViewModel: Exception loading stats - ${e.message}")
             }
         }
     }

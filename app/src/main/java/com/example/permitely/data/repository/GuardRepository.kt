@@ -2,8 +2,10 @@ package com.example.permitely.data.repository
 
 import com.example.permitely.data.models.*
 import com.example.permitely.data.network.GuardApiService
+import com.example.permitely.data.storage.TokenStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,7 +14,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class GuardRepository @Inject constructor(
-    private val guardApiService: GuardApiService
+    private val guardApiService: GuardApiService,
+    private val tokenStorage: TokenStorage
 ) {
 
     /**
@@ -24,16 +27,26 @@ class GuardRepository @Inject constructor(
         try {
             println("GuardRepository: Scanning pass with ID: $passId")
 
-            val response = guardApiService.scanPass(passId)
+            // Get the access token
+            val accessToken = tokenStorage.getAccessToken().first()
+            if (accessToken.isNullOrEmpty()) {
+                emit(Result.success(PassScanResult(
+                    isSuccess = false,
+                    errorMessage = "Authentication required. Please login again."
+                )))
+                return@flow
+            }
+
+            val response = guardApiService.scanPass(passId, "Bearer $accessToken")
 
             println("GuardRepository: Scan response code: ${response.code()}")
             println("GuardRepository: Scan response success: ${response.isSuccessful}")
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
+                println("GuardRepository: API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
 
-                if (apiResponse?.success == true && apiResponse.data != null) {
+                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
                     val scanData = apiResponse.data
 
                     println("GuardRepository: Pass scan successful for visitor: ${scanData.visitor.name}")
@@ -120,6 +133,73 @@ class GuardRepository @Inject constructor(
         } catch (e: Exception) {
             println("GuardRepository: Failed to extract pass ID from QR code: $qrCodeUrl")
             null
+        }
+    }
+
+    /**
+     * Get today's guard statistics from API
+     * @return Flow<Result<GuardTodayStatsData>> with today's visitor statistics
+     */
+    suspend fun getTodayStats(): Flow<Result<GuardTodayStatsData>> = flow {
+        try {
+            println("GuardRepository: Fetching today's guard statistics")
+
+            // Get the access token
+            val accessToken = tokenStorage.getAccessToken().first()
+            if (accessToken.isNullOrEmpty()) {
+                emit(Result.failure(Exception("Authentication required. Please login again.")))
+                return@flow
+            }
+
+            val response = guardApiService.getTodayStats("Bearer $accessToken")
+
+            println("GuardRepository: Stats response code: ${response.code()}")
+            println("GuardRepository: Stats response success: ${response.isSuccessful}")
+
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                println("GuardRepository: API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
+
+                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
+                    val statsResponse = apiResponse.data
+                    val statsData = statsResponse.stats  // Extract from nested structure
+
+                    println("GuardRepository: Today's stats loaded successfully - Total: ${statsData.totalVisitors}")
+
+                    emit(Result.success(statsData))
+                } else {
+                    val errorMessage = apiResponse?.message ?: "Failed to load today's statistics"
+                    println("GuardRepository: API returned error: $errorMessage")
+                    emit(Result.failure(Exception(errorMessage)))
+                }
+            } else {
+                // Handle HTTP error responses
+                val errorBody = response.errorBody()?.string()
+                println("GuardRepository: HTTP Error ${response.code()}: $errorBody")
+
+                val errorMessage = when (response.code()) {
+                    401 -> "Unauthorized access. Please login again"
+                    403 -> "Access denied. Guard permissions required"
+                    404 -> "Statistics endpoint not found"
+                    500 -> "Server error. Please try again later"
+                    else -> "Failed to load statistics. Please try again"
+                }
+
+                emit(Result.failure(Exception(errorMessage)))
+            }
+        } catch (e: Exception) {
+            println("GuardRepository: Exception during stats fetch: ${e.javaClass.simpleName}: ${e.message}")
+            e.printStackTrace()
+
+            val errorMessage = when (e) {
+                is java.net.UnknownHostException -> "No internet connection"
+                is java.net.SocketTimeoutException -> "Connection timeout"
+                is com.google.gson.JsonSyntaxException -> "Invalid response format from server"
+                is com.google.gson.JsonParseException -> "Failed to parse server response"
+                else -> "Network error: ${e.message ?: "Unknown error"}"
+            }
+
+            emit(Result.failure(Exception(errorMessage)))
         }
     }
 }

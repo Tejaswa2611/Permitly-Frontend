@@ -185,3 +185,23 @@ data class PassScanResult(
     val visitor: VisitorScanData? = null,
     val errorMessage: String? = null
 )
+
+/**
+ * Guard today stats API response data structure
+ * Updated to match actual backend response: {"status":"success","data":{"stats":{...}}}
+ */
+data class GuardTodayStatsResponse(
+    val stats: GuardTodayStatsData
+)
+
+/**
+ * Guard today stats data from API response
+ */
+data class GuardTodayStatsData(
+    val approvedVisitors: Int,    // Today's approved visitors (entered)
+    val pendingVisitors: Int,     // Today's pending visitors (waiting)
+    val expiredVisitors: Int,     // Today's expired visitors
+    val rejectedVisitors: Int,    // Today's rejected visitors
+    val totalVisitors: Int,       // Sum of all above (total for today)
+    val date: String              // Date for these stats (2025-08-11)
+)

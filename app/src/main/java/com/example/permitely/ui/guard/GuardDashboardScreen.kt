@@ -215,6 +215,12 @@ private fun StatsSection(uiState: DashboardStatsUiState) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        // Debug logging
+        println("StatsSection: totalVisitors = ${uiState.totalVisitors}")
+        println("StatsSection: approved = ${uiState.approved}")
+        println("StatsSection: pending = ${uiState.pending}")
+        println("StatsSection: totalVisitors.toString() = '${uiState.totalVisitors.toString()}'")
+
         // 3 stats cards placed vertically (one below another)
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -260,9 +266,12 @@ private fun StatsCard(
     iconColor: Color,
     modifier: Modifier = Modifier
 ) {
+    // Debug logging for this specific card
+    println("StatsCard: title='$title', value='$value', value.length=${value.length}")
+
     Card(
         modifier = modifier
-            .height(80.dp),
+            .height(100.dp), // Increased from 80.dp to 100.dp to prevent text clipping
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

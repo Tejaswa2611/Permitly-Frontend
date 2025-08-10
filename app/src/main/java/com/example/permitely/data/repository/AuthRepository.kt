@@ -36,9 +36,9 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("Login API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
+                println("Login API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
 
-                if (apiResponse?.success == true && apiResponse.data != null) {
+                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
                     val userData = apiResponse.data.user
                     val tokens = apiResponse.data.tokens
 
@@ -106,7 +106,7 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                if (apiResponse?.success == true && apiResponse.data != null) {
+                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
                     val userData = apiResponse.data.user
                     val tokens = apiResponse.data.tokens
 

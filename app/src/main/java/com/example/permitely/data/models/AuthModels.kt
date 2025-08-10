@@ -30,10 +30,13 @@ data class SignupRequest(
  * Base API response structure from backend
  */
 data class ApiResponse<T>(
-    val success: Boolean,
+    @SerializedName("status") val success: String,  // Backend sends "status": "success"
     val message: String? = null,
     val data: T? = null
-)
+) {
+    // Helper property to check if response is successful
+    val isSuccess: Boolean get() = success == "success"
+}
 
 /**
  * Token refresh request
