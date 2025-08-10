@@ -70,3 +70,20 @@ data class CreateVisitorResponse(
     val data: CreateVisitorResponseData? = null,
     val message: String? = null
 )
+
+/**
+ * Get all visitors API response wrapper
+ */
+data class GetAllVisitorsResponse(
+    val status: String,
+    val results: Int? = null,
+    val data: GetAllVisitorsData? = null,
+    val message: String? = null
+)
+
+/**
+ * Get all visitors response data
+ */
+data class GetAllVisitorsData(
+    val visitors: List<VisitorData>
+)

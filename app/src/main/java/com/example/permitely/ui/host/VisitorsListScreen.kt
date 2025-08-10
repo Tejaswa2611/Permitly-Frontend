@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.common.PermitelyTextField
 import com.example.permitely.ui.common.PermitelySearchAppBar
 import com.example.permitely.ui.theme.*
@@ -32,30 +34,54 @@ import kotlinx.coroutines.launch
 @Composable
 fun VisitorsListScreen(
     onNavigateBack: () -> Unit = {},
-    onVisitorClick: (Visitor) -> Unit = {}
+    onVisitorClick: (Visitor) -> Unit = {},
+    viewModel: VisitorsListViewModel = hiltViewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf(VisitorFilter.ALL) }
     val scope = rememberCoroutineScope()
 
-    // Dummy visitor data - will be replaced with API later
-    val allVisitors = remember { getDummyVisitors() }
+    // Observe ViewModel state
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Filter visitors based on search and filter
-    val filteredVisitors = remember(searchQuery, selectedFilter, allVisitors) {
-        allVisitors.filter { visitor ->
-            val matchesSearch = visitor.name.contains(searchQuery, ignoreCase = true) ||
-                    visitor.email.contains(searchQuery, ignoreCase = true)
+    // Convert API visitors to UI visitors
+    val allVisitors = remember(uiState.visitors) {
+        uiState.visitors.map { apiVisitor ->
+            viewModel.convertToUiVisitor(apiVisitor)
+        }
+    }
 
-            val matchesFilter = when (selectedFilter) {
-                VisitorFilter.ALL -> true
-                VisitorFilter.PENDING -> visitor.status == VisitorStatus.PENDING
-                VisitorFilter.APPROVED -> visitor.status == VisitorStatus.APPROVED
-                VisitorFilter.REJECTED -> visitor.status == VisitorStatus.REJECTED
-                VisitorFilter.EXPIRED -> visitor.status == VisitorStatus.EXPIRED
+    // Handle filter changes and trigger API calls
+    LaunchedEffect(selectedFilter) {
+        val statusFilter = when (selectedFilter) {
+            VisitorFilter.ALL -> null
+            VisitorFilter.PENDING -> "PENDING"
+            VisitorFilter.APPROVED -> "APPROVED"
+            VisitorFilter.REJECTED -> "REJECTED"
+            VisitorFilter.EXPIRED -> "EXPIRED"
+        }
+        viewModel.filterByStatus(statusFilter)
+    }
+
+    // Filter visitors based on search (client-side filtering)
+    val filteredVisitors = remember(searchQuery, allVisitors) {
+        if (searchQuery.isEmpty()) {
+            allVisitors
+        } else {
+            allVisitors.filter { visitor ->
+                visitor.name.contains(searchQuery, ignoreCase = true) ||
+                        visitor.email.contains(searchQuery, ignoreCase = true)
             }
+        }
+    }
 
-            matchesSearch && matchesFilter
+    // Show error if any
+    uiState.errorMessage?.let { errorMessage ->
+        LaunchedEffect(errorMessage) {
+            // You can show a snackbar or toast here
+            println("Error loading visitors: $errorMessage")
+            // Clear error after showing
+            viewModel.clearError()
         }
     }
 
