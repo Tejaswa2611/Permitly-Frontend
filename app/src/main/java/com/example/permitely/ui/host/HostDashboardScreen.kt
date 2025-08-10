@@ -65,7 +65,7 @@ fun HostDashboardScreen(
         topBar = {
             PermitelyProfileAppBar(
                 title = "Dashboard",
-                subtitle = "Manage your visitors and access",
+                subtitle = "", // Remove redundant subtitle
                 userName = uiState.userName,
                 userRole = "Host",
                 onProfileClick = onViewProfile,
@@ -265,21 +265,12 @@ private fun WelcomeHeader(
                 )
             }
 
-            Row {
-                IconButton(onClick = onViewProfile) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = Primary
-                    )
-                }
-                IconButton(onClick = onLogout) {
-                    Icon(
-                        imageVector = Icons.Default.ExitToApp,
-                        contentDescription = "Logout",
-                        tint = TextSecondary
-                    )
-                }
+            IconButton(onClick = onViewProfile) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    tint = Primary
+                )
             }
         }
     }

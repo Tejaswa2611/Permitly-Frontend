@@ -372,27 +372,16 @@ fun PermitelyProfileAppBar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
     modifier: Modifier = Modifier
 ) {
-    LargeTopAppBar(
+    TopAppBar(
         title = {
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         },
         actions = {
             // Notification button
@@ -400,72 +389,23 @@ fun PermitelyProfileAppBar(
                 AppBarActionButton(
                     icon = Icons.Default.Notifications,
                     contentDescription = "Notifications",
-                    onClick = onClick,
-                    badge = if (notificationCount > 0) notificationCount.toString() else null
+                    badge = if (notificationCount > 0) notificationCount.toString() else null,
+                    onClick = onClick
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Profile section
-            TextButton(
-                onClick = onProfileClick,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = TextPrimary
-                ),
-                modifier = Modifier.padding(end = 8.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = userName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = userRole.capitalize(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Primary, Secondary)
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = OnPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+            // Profile button
+            AppBarActionButton(
+                icon = Icons.Default.Person,
+                contentDescription = "Profile",
+                onClick = onProfileClick
+            )
         },
-        colors = TopAppBarDefaults.largeTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Surface,
-            scrolledContainerColor = Surface.copy(alpha = 0.95f),
-            titleContentColor = TextPrimary,
-            actionIconContentColor = Primary
+            scrolledContainerColor = Surface
         ),
         scrollBehavior = scrollBehavior,
-        modifier = modifier.shadow(
-            elevation = 4.dp,
-            spotColor = Primary.copy(alpha = 0.1f),
-            ambientColor = Primary.copy(alpha = 0.05f)
-        )
+        modifier = modifier
     )
 }
