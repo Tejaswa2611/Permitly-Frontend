@@ -158,9 +158,9 @@ class GuardRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
+                println("GuardRepository: API Response: ${apiResponse?.status}, data=${apiResponse?.data}")
 
-                if (apiResponse?.success == true && apiResponse.data != null) {
+                if (apiResponse?.status == "success" && apiResponse.data != null) {
                     val statsResponse = apiResponse.data
                     val statsData = statsResponse.stats  // Extract from nested structure
 
@@ -168,7 +168,7 @@ class GuardRepository @Inject constructor(
 
                     emit(Result.success(statsData))
                 } else {
-                    val errorMessage = apiResponse?.message ?: "Failed to load today's statistics"
+                    val errorMessage = "Failed to load today's statistics"
                     println("GuardRepository: API returned error: $errorMessage")
                     emit(Result.failure(Exception(errorMessage)))
                 }

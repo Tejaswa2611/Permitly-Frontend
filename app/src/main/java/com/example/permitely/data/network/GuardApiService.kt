@@ -30,5 +30,5 @@ interface GuardApiService {
     @GET("api/guard/stats/today")
     suspend fun getTodayStats(
         @Header("Authorization") token: String
-    ): Response<ApiResponse<GuardTodayStatsResponse>>
+    ): Response<GuardTodayStatsResponse>
 }
