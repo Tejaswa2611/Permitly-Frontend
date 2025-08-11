@@ -1,6 +1,7 @@
 package com.example.permitely.data.repository
 
 import com.example.permitely.data.models.DashboardStats
+import com.example.permitely.data.models.RecentVisitor
 import com.example.permitely.data.network.DashboardApiService
 import com.example.permitely.data.network.ProfileApiService
 import com.example.permitely.data.storage.TokenStorage
@@ -102,6 +103,35 @@ class DashboardRepository @Inject constructor(
             } catch (fallbackError: Exception) {
                 emit(Result.failure(e))
             }
+        }
+    }
+
+    /**
+     * Fetch recent visitors from the API
+     * @return Flow<Result<List<RecentVisitor>>> - Flow containing success/failure results
+     */
+    fun getRecentVisitors(): Flow<Result<List<RecentVisitor>>> = flow {
+        try {
+            val token = tokenStorage.getAccessToken().first()
+            if (token == null || token.isEmpty()) {
+                emit(Result.failure(Exception("No access token available")))
+                return@flow
+            }
+
+            val response = dashboardApiService.getRecentVisitors("Bearer $token")
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true && body.data != null) {
+                    emit(Result.success(body.data))
+                } else {
+                    emit(Result.failure(Exception(body?.message ?: "Failed to fetch recent visitors")))
+                }
+            } else {
+                emit(Result.failure(Exception("HTTP ${response.code()}: ${response.message()}")))
+            }
+        } catch (e: Exception) {
+            emit(Result.failure(e))
         }
     }
 }

@@ -44,9 +44,9 @@ class GuardRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
+                println("GuardRepository: API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
 
-                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
+                if (apiResponse?.success == true && apiResponse.data != null) {
                     val scanData = apiResponse.data
 
                     println("GuardRepository: Pass scan successful for visitor: ${scanData.visitor.name}")
@@ -158,9 +158,9 @@ class GuardRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
+                println("GuardRepository: API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
 
-                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
+                if (apiResponse?.success == true && apiResponse.data != null) {
                     val statsResponse = apiResponse.data
                     val statsData = statsResponse.stats  // Extract from nested structure
 

@@ -1,6 +1,7 @@
 package com.example.permitely.data.network
 
 import com.example.permitely.data.models.DashboardStatsResponse
+import com.example.permitely.data.models.RecentVisitorsResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -18,4 +19,13 @@ interface DashboardApiService {
     suspend fun getDashboardStats(
         @Header("Authorization") token: String
     ): Response<DashboardStatsResponse>
+
+    /**
+     * Get recent visitors for the host
+     * GET /api/users/recent-visitors
+     */
+    @GET("api/users/recent-visitors")
+    suspend fun getRecentVisitors(
+        @Header("Authorization") token: String
+    ): Response<RecentVisitorsResponse>
 }

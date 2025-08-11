@@ -36,9 +36,10 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("Login API Response: isSuccess=${apiResponse?.isSuccess}, data=${apiResponse?.data}")
+                println("Login API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
 
-                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
+                if (apiResponse?.success == true && apiResponse.data != null) {
+                    // Handle successful login response
                     val userData = apiResponse.data.user
                     val tokens = apiResponse.data.tokens
 
@@ -53,15 +54,45 @@ class AuthRepository @Inject constructor(
 
                     // Save user information
                     tokenStorage.saveUserInfo(
-                        id = userData.id.toString(), // Convert Int to String for storage
+                        id = userData.id.toString(),
                         name = userData.name,
                         email = userData.email,
                         role = userData.role
                     )
 
                     emit(AuthResult.Success("Login successful"))
+                } else if (apiResponse != null && apiResponse.data != null) {
+                    // Fallback: Try to process the response even if success check fails
+                    println("Login Fallback: Attempting to process response without success check")
+                    try {
+                        val userData = apiResponse.data.user
+                        val tokens = apiResponse.data.tokens
+
+                        println("Login Fallback User Data: id=${userData.id}, name=${userData.name}, role=${userData.role}")
+
+                        // Save tokens securely
+                        tokenStorage.saveTokens(
+                            accessToken = tokens.accessToken,
+                            refreshToken = tokens.refreshToken
+                        )
+
+                        // Save user information
+                        tokenStorage.saveUserInfo(
+                            id = userData.id.toString(),
+                            name = userData.name,
+                            email = userData.email,
+                            role = userData.role
+                        )
+
+                        emit(AuthResult.Success("Login successful"))
+                    } catch (e: Exception) {
+                        println("Login Fallback Failed: ${e.message}")
+                        emit(AuthResult.Error("Login response format error: ${e.message}"))
+                    }
                 } else {
-                    emit(AuthResult.Error(apiResponse?.message ?: "Login failed"))
+                    println("Login Failed: success=${apiResponse?.success}, hasData=${apiResponse?.data != null}")
+                    println("Login Message: ${apiResponse?.message}")
+                    emit(AuthResult.Error(apiResponse?.message ?: "Login failed - response parsing issue"))
                 }
             } else {
                 // Get the actual error response body for debugging
@@ -106,7 +137,7 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                if (apiResponse?.isSuccess == true && apiResponse.data != null) {
+                if (apiResponse?.success == true && apiResponse.data != null) {
                     val userData = apiResponse.data.user
                     val tokens = apiResponse.data.tokens
 

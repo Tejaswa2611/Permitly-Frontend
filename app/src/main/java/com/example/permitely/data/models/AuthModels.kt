@@ -27,16 +27,13 @@ data class SignupRequest(
 )
 
 /**
- * Base API response structure from backend
+ * Base API response structure from backend (for login/auth APIs)
  */
 data class ApiResponse<T>(
-    @SerializedName("status") val success: String,  // Backend sends "status": "success"
+    val success: Boolean,  // Login API uses "success": true/false
     val message: String? = null,
     val data: T? = null
-) {
-    // Helper property to check if response is successful
-    val isSuccess: Boolean get() = success == "success"
-}
+)
 
 /**
  * Token refresh request

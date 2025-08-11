@@ -135,6 +135,7 @@ class HostDashboardViewModel @Inject constructor(
      */
     fun refresh() {
         loadDashboardData()
+        loadRecentVisitors()
     }
 
     /**
