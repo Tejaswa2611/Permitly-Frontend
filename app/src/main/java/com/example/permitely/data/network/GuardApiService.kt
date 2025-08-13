@@ -21,7 +21,7 @@ interface GuardApiService {
     suspend fun scanPass(
         @Path("passId") passId: Int,
         @Header("Authorization") token: String
-    ): Response<ApiResponse<PassScanResponseData>>
+    ): Response<PassScanResponseData>
 
     /**
      * Get today's guard statistics

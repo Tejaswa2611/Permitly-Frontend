@@ -93,6 +93,9 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.1")
     implementation("androidx.camera:camera-extensions:1.3.1")
 
+    // ML Kit for QR Code Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
     // Networking Dependencies
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")

@@ -1,5 +1,6 @@
 package com.example.permitely.data.repository
 
+import android.util.Log
 import com.example.permitely.data.models.*
 import com.example.permitely.data.network.GuardApiService
 import com.example.permitely.data.storage.TokenStorage
@@ -18,18 +19,33 @@ class GuardRepository @Inject constructor(
     private val tokenStorage: TokenStorage
 ) {
 
+    companion object {
+        private const val TAG = "GuardRepository"
+    }
+
     /**
      * Scan visitor pass using the pass ID extracted from QR code
      * @param passId The pass ID extracted from QR code URL
      * @return Flow<Result<PassScanResult>> indicating success or failure
      */
-    suspend fun scanPass(passId: Int): Flow<Result<PassScanResult>> = flow {
+    fun scanPass(passId: Int): Flow<Result<PassScanResult>> = flow {
+        // Force immediate emission to test if flow block executes
+
+
         try {
-            println("GuardRepository: Scanning pass with ID: $passId")
+            Log.d(TAG, "FLOW BLOCK STARTED - Entering scanPass flow for passId: $passId")
+            Log.d(TAG, "FLOW BLOCK - Inside try block")
+            Log.d(TAG, "Scanning pass with ID: $passId")
+            Log.d(TAG, "Constructing URL - Base: https://permitly-production.up.railway.app/, Endpoint: api/guard/scan/$passId")
+            Log.d(TAG, "Full expected URL: https://permitly-production.up.railway.app/api/guard/scan/$passId")
 
             // Get the access token
+            Log.d(TAG, "About to get access token from tokenStorage")
             val accessToken = tokenStorage.getAccessToken().first()
+            Log.d(TAG, "Access token retrieved: ${if (accessToken?.isNotEmpty() == true) "Token exists (${accessToken.take(10)}...)" else "Token is null/empty"}")
+
             if (accessToken.isNullOrEmpty()) {
+                Log.d(TAG, "Access token is null/empty, returning auth error")
                 emit(Result.success(PassScanResult(
                     isSuccess = false,
                     errorMessage = "Authentication required. Please login again."
@@ -37,19 +53,35 @@ class GuardRepository @Inject constructor(
                 return@flow
             }
 
+            Log.d(TAG, "About to make POST request to /api/guard/scan/$passId")
+            Log.d(TAG, "Authorization header: Bearer ${accessToken.take(20)}...")
+            Log.d(TAG, "Calling guardApiService.scanPass($passId, \"Bearer ...\")")
+            Log.d(TAG, "Expected final URL: https://permitly-production.up.railway.app/api/guard/scan/$passId")
+            Log.d(TAG, "Pass ID type: ${passId.javaClass.simpleName}, value: '$passId'")
+
             val response = guardApiService.scanPass(passId, "Bearer $accessToken")
 
-            println("GuardRepository: Scan response code: ${response.code()}")
-            println("GuardRepository: Scan response success: ${response.isSuccessful}")
+            Log.d(TAG, "Scan response received")
+            Log.d(TAG, "Scan response code: ${response.code()}")
+            Log.d(TAG, "Scan response success: ${response.isSuccessful}")
+            Log.d(TAG, "Response headers: ${response.headers()}")
+            Log.d(TAG, "Response URL: ${response.raw().request.url}")
+
+            // Log the error body for 400 responses to see actual backend error
+            if (!response.isSuccessful && response.code() == 400) {
+                val errorBody = response.errorBody()?.string()
+                Log.d(TAG, "400 Error body: $errorBody")
+            }
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: success=${apiResponse?.success}, data=${apiResponse?.data}")
+                Log.d(TAG, "API Response: status=${apiResponse?.status}, data=${apiResponse?.data}")
 
-                if (apiResponse?.success == true && apiResponse.data != null) {
+                // Your backend returns "status": "success", not "success": true
+                if (apiResponse?.status == "success" && apiResponse.data != null) {
                     val scanData = apiResponse.data
 
-                    println("GuardRepository: Pass scan successful for visitor: ${scanData.visitor.name}")
+                    Log.d(TAG, "Pass scan successful for visitor: ${scanData.visitor.name}")
 
                     val scanResult = PassScanResult(
                         isSuccess = true,
@@ -59,8 +91,13 @@ class GuardRepository @Inject constructor(
 
                     emit(Result.success(scanResult))
                 } else {
-                    val errorMessage = apiResponse?.message ?: "Unknown error occurred"
-                    println("GuardRepository: API returned error: $errorMessage")
+                    // Extract actual error message from your backend response
+                    val errorMessage = when (apiResponse?.status) {
+                        "error" -> apiResponse.message ?: "Unknown error occurred"
+                        null -> "Failed to parse server response"
+                        else -> "Unknown error occurred"
+                    }
+                    Log.d(TAG, "API returned error: $errorMessage")
 
                     val scanResult = PassScanResult(
                         isSuccess = false,
@@ -72,7 +109,7 @@ class GuardRepository @Inject constructor(
             } else {
                 // Handle HTTP error responses
                 val errorBody = response.errorBody()?.string()
-                println("GuardRepository: HTTP Error ${response.code()}: $errorBody")
+                Log.d(TAG, "HTTP Error ${response.code()}: $errorBody")
 
                 val errorMessage = when (response.code()) {
                     400 -> "Invalid pass ID format"
@@ -98,8 +135,7 @@ class GuardRepository @Inject constructor(
                 emit(Result.success(scanResult))
             }
         } catch (e: Exception) {
-            println("GuardRepository: Exception during pass scan: ${e.javaClass.simpleName}: ${e.message}")
-            e.printStackTrace()
+            Log.e(TAG, "Exception during pass scan: ${e.javaClass.simpleName}: ${e.message}", e)
 
             val errorMessage = when (e) {
                 is java.net.UnknownHostException -> "No internet connection"
@@ -131,7 +167,7 @@ class GuardRepository @Inject constructor(
             val matchResult = regex.find(qrCodeUrl)
             matchResult?.groupValues?.get(1)?.toIntOrNull()
         } catch (e: Exception) {
-            println("GuardRepository: Failed to extract pass ID from QR code: $qrCodeUrl")
+            Log.d(TAG, "Failed to extract pass ID from QR code: $qrCodeUrl")
             null
         }
     }
@@ -142,7 +178,7 @@ class GuardRepository @Inject constructor(
      */
     suspend fun getTodayStats(): Flow<Result<GuardTodayStatsData>> = flow {
         try {
-            println("GuardRepository: Fetching today's guard statistics")
+            Log.d(TAG, "Fetching today's guard statistics")
 
             // Get the access token
             val accessToken = tokenStorage.getAccessToken().first()
@@ -153,29 +189,29 @@ class GuardRepository @Inject constructor(
 
             val response = guardApiService.getTodayStats("Bearer $accessToken")
 
-            println("GuardRepository: Stats response code: ${response.code()}")
-            println("GuardRepository: Stats response success: ${response.isSuccessful}")
+            Log.d(TAG, "Stats response code: ${response.code()}")
+            Log.d(TAG, "Stats response success: ${response.isSuccessful}")
 
             if (response.isSuccessful) {
                 val apiResponse = response.body()
-                println("GuardRepository: API Response: ${apiResponse?.status}, data=${apiResponse?.data}")
+                Log.d(TAG, "API Response: ${apiResponse?.status}, data=${apiResponse?.data}")
 
                 if (apiResponse?.status == "success" && apiResponse.data != null) {
                     val statsResponse = apiResponse.data
                     val statsData = statsResponse.stats  // Extract from nested structure
 
-                    println("GuardRepository: Today's stats loaded successfully - Total: ${statsData.totalVisitors}")
+                    Log.d(TAG, "Today's stats loaded successfully - Total: ${statsData.totalVisitors}")
 
                     emit(Result.success(statsData))
                 } else {
                     val errorMessage = "Failed to load today's statistics"
-                    println("GuardRepository: API returned error: $errorMessage")
+                    Log.d(TAG, "API returned error: $errorMessage")
                     emit(Result.failure(Exception(errorMessage)))
                 }
             } else {
                 // Handle HTTP error responses
                 val errorBody = response.errorBody()?.string()
-                println("GuardRepository: HTTP Error ${response.code()}: $errorBody")
+                Log.d(TAG, "HTTP Error ${response.code()}: $errorBody")
 
                 val errorMessage = when (response.code()) {
                     401 -> "Unauthorized access. Please login again"
@@ -188,8 +224,7 @@ class GuardRepository @Inject constructor(
                 emit(Result.failure(Exception(errorMessage)))
             }
         } catch (e: Exception) {
-            println("GuardRepository: Exception during stats fetch: ${e.javaClass.simpleName}: ${e.message}")
-            e.printStackTrace()
+            Log.e(TAG, "Exception during stats fetch: ${e.javaClass.simpleName}: ${e.message}", e)
 
             val errorMessage = when (e) {
                 is java.net.UnknownHostException -> "No internet connection"

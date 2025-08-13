@@ -6,6 +6,12 @@ import com.google.gson.annotations.SerializedName
  * Pass scanning API response data structure
  */
 data class PassScanResponseData(
+    val status: String,
+    val data: DataWrapper? = null,
+    val message: String? = null  // For error responses from your backend
+)
+
+data class DataWrapper(
     val pass: PassScanData,
     val visitor: VisitorScanData
 )

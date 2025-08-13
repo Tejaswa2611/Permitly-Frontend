@@ -14,13 +14,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -37,11 +33,60 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.permitely.ui.theme.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+// ML Kit imports for QR code scanning
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+// Permission handling imports
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.PermissionChecker
+
+/**
+ * QR Code Analyzer for ML Kit barcode scanning
+ */
+@androidx.camera.core.ExperimentalGetImage
+class QRCodeAnalyzer(
+    private val onQRCodeDetected: (String) -> Unit
+) : ImageAnalysis.Analyzer {
+
+    private val scanner = BarcodeScanning.getClient()
+
+    override fun analyze(imageProxy: ImageProxy) {
+        val mediaImage = imageProxy.image
+        if (mediaImage != null) {
+            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+            scanner.process(image)
+                .addOnSuccessListener { barcodes ->
+                    for (barcode in barcodes) {
+                        when (barcode.valueType) {
+                            Barcode.TYPE_URL,
+                            Barcode.TYPE_TEXT -> {
+                                barcode.rawValue?.let { value ->
+                                    onQRCodeDetected(value)
+                                }
+                            }
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    // Handle scanning failure silently
+                }
+                .addOnCompleteListener {
+                    imageProxy.close()
+                }
+        } else {
+            imageProxy.close()
+        }
+    }
+}
 
 /**
  * Scan Pass Screen - Full-screen camera with QR code scanning
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.camera.core.ExperimentalGetImage::class)
 @Composable
 fun ScanPassScreen(
     onNavigateBack: () -> Unit,
@@ -57,6 +102,30 @@ fun ScanPassScreen(
     var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
     var camera: Camera? by remember { mutableStateOf(null) }
 
+    // Camera permission state
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PermissionChecker.PERMISSION_GRANTED
+        )
+    }
+
+    // Permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        hasCameraPermission = isGranted
+    }
+
+    // Request permission if not granted
+    LaunchedEffect(hasCameraPermission) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     // Camera executor
     val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
 
@@ -71,52 +140,92 @@ fun ScanPassScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Camera Preview
-        AndroidView(
-            factory = { ctx ->
-                val previewView = PreviewView(ctx)
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+        // Camera Preview - Only show if permission granted
+        if (hasCameraPermission) {
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
-                cameraProviderFuture.addListener({
-                    val provider = cameraProviderFuture.get()
-                    cameraProvider = provider
+                    cameraProviderFuture.addListener({
+                        val provider = cameraProviderFuture.get()
+                        cameraProvider = provider
 
-                    val preview = Preview.Builder().build()
-                    preview.setSurfaceProvider(previewView.surfaceProvider)
+                        val preview = Preview.Builder().build()
+                        preview.setSurfaceProvider(previewView.surfaceProvider)
 
-                    val imageAnalyzer = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
+                        val imageAnalyzer = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
 
-                    // TODO: Add QR code analysis here
-                    // imageAnalyzer.setAnalyzer(cameraExecutor, QRCodeAnalyzer { qrCode ->
-                    //     onPassScanned(qrCode)
-                    // })
+                        @Suppress("ExperimentalGetImage")
+                        imageAnalyzer.setAnalyzer(cameraExecutor, QRCodeAnalyzer { qrCode ->
+                            // Route through ViewModel instead of calling onPassScanned directly
+                            viewModel.onQRCodeScanned(qrCode)
+                        })
 
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                    try {
-                        provider.unbindAll()
-                        camera = provider.bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            preview,
-                            imageAnalyzer
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                        try {
+                            provider.unbindAll()
+                            camera = provider.bindToLifecycle(
+                                lifecycleOwner,
+                                cameraSelector,
+                                preview,
+                                imageAnalyzer
+                            )
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // Permission not granted - show message
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Text(
+                        text = "Camera Permission Required",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "This app needs camera permission to scan QR codes. Please grant camera permission to continue.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                    ) {
+                        Text("Grant Camera Permission")
                     }
-                }, ContextCompat.getMainExecutor(ctx))
+                }
+            }
+        }
 
-                previewView
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Scan Frame Overlay
-        ScanFrameOverlay(
-            modifier = Modifier.fillMaxSize()
-        )
+        // Show scan overlay only if camera permission granted
+        if (hasCameraPermission) {
+            ScanFrameOverlay()
+        }
 
         // Top Bar
         Row(
@@ -259,7 +368,6 @@ fun ScanPassScreen(
         // Error State
         uiState.error?.let { error ->
             LaunchedEffect(error) {
-                // Show error for 3 seconds then allow scanning again
                 kotlinx.coroutines.delay(3000)
                 viewModel.clearError()
                 viewModel.startScanningAgain()
@@ -278,15 +386,6 @@ fun ScanPassScreen(
                     modifier = Modifier.padding(16.dp),
                     textAlign = TextAlign.Center
                 )
-            }
-        }
-
-        // Handle QR code scanning when camera is ready and scanning is active
-        LaunchedEffect(uiState.isScanning) {
-            if (uiState.isScanning) {
-                // Simulate QR code scan for demo - replace with actual QR scanner
-                // For now, you can test with a sample QR code
-                // viewModel.onQRCodeScanned("https://yourbackend.com/api/guard/scan/789")
             }
         }
     }
@@ -335,13 +434,11 @@ private fun ScanResultCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (scanResult.isSuccess && scanResult.visitor != null && scanResult.pass != null) {
-                // Show visitor details for successful scan
                 VisitorDetailsSection(
                     visitor = scanResult.visitor,
                     pass = scanResult.pass
                 )
             } else {
-                // Show error message
                 Text(
                     text = scanResult.errorMessage ?: "Unknown error occurred",
                     style = MaterialTheme.typography.bodyLarge,
@@ -446,7 +543,6 @@ private fun DetailRow(label: String, value: String) {
  */
 private fun formatDateTime(isoString: String): String {
     return try {
-        // Simple formatting - you can enhance this with proper date formatting
         isoString.substring(0, 16).replace("T", " ")
     } catch (e: Exception) {
         isoString
@@ -460,8 +556,7 @@ private fun formatDateTime(isoString: String): String {
 fun ScanFrameOverlay(modifier: Modifier = Modifier) {
     val density = LocalDensity.current
 
-    Box(modifier = modifier) {
-        // Center scanning area with transparent overlay
+    Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val frameSize = size.width * 0.7f
             val frameLeft = (size.width - frameSize) / 2
